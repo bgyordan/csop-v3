@@ -25,7 +25,18 @@ export async function GET(request: NextRequest) {
         },
       }
     );
+
     await supabase.auth.exchangeCodeForSession(code);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.email,
+        role: 'viewer'
+      }, { onConflict: 'id' });
+    }
   }
 
   return NextResponse.redirect(new URL('/dashboard', request.url));
