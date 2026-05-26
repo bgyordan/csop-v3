@@ -15,7 +15,7 @@ export default async function IncomingPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user!.id).maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (!profile) redirect('/login');
 
   const userRole = (profile as { role: Role }).role;

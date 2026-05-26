@@ -8,7 +8,6 @@ import { formatBgDate } from '@/lib/utils/date';
 import type { RegisterType, Role } from '@/lib/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -29,17 +28,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 
-interface Column {
-  key: string;
-  label: string;
-  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
-}
-
 interface RegisterTableProps {
   register: RegisterType;
   title: string;
   data: Record<string, unknown>[];
-  columns: Column[];
   userRole: Role;
   totalCount: number;
   page: number;
@@ -47,11 +39,81 @@ interface RegisterTableProps {
   searchValue?: string;
 }
 
+const registerColumnConfigs: Record<RegisterType, { key: string; label: string }[]> = {
+  incoming: [
+    { key: 'number', label: '№' },
+    { key: 'date', label: 'Дата' },
+    { key: 'from_whom', label: 'От кого' },
+    { key: 'subject', label: 'Относно' },
+    { key: 'file_name', label: 'Файл' },
+  ],
+  outgoing: [
+    { key: 'number', label: '№' },
+    { key: 'date', label: 'Дата' },
+    { key: 'to_whom', label: 'До кого' },
+    { key: 'subject', label: 'Относно' },
+    { key: 'file_name', label: 'Файл' },
+  ],
+  orders: [
+    { key: 'number', label: '№' },
+    { key: 'date', label: 'Дата' },
+    { key: 'title', label: 'Заглавие' },
+    { key: 'file_name', label: 'Файл' },
+  ],
+  contracts: [
+    { key: 'number', label: '№' },
+    { key: 'date', label: 'Дата' },
+    { key: 'counterparty', label: 'Контрагент' },
+    { key: 'subject', label: 'Предмет' },
+    { key: 'start_date', label: 'От дата' },
+    { key: 'end_date', label: 'До дата' },
+    { key: 'file_name', label: 'Файл' },
+  ],
+};
+
+const numberColors: Record<RegisterType, string> = {
+  incoming: 'text-blue-700',
+  outgoing: 'text-green-700',
+  orders: 'text-orange-700',
+  contracts: 'text-purple-700',
+};
+
+const fileBadgeColors: Record<RegisterType, string> = {
+  incoming: 'bg-blue-50 text-blue-700',
+  outgoing: 'bg-green-50 text-green-700',
+  orders: 'bg-orange-50 text-orange-700',
+  contracts: 'bg-purple-50 text-purple-700',
+};
+
+function renderCell(register: RegisterType, key: string, value: unknown): React.ReactNode {
+  if (value === null || value === undefined || value === '') return <span className="text-gray-300">—</span>;
+
+  if (key === 'number') {
+    return <span className={`font-mono font-medium ${numberColors[register]}`}>{String(value)}</span>;
+  }
+
+  if (key === 'date' || key === 'start_date' || key === 'end_date') {
+    return formatBgDate(value as string);
+  }
+
+  if (key === 'file_name') {
+    if (value) {
+      return (
+        <span className={`text-xs px-2 py-1 rounded font-medium ${fileBadgeColors[register]}`}>
+          PDF/DOCX
+        </span>
+      );
+    }
+    return <span className="text-gray-300">—</span>;
+  }
+
+  return String(value);
+}
+
 export default function RegisterTable({
   register,
   title,
   data,
-  columns,
   userRole,
   totalCount,
   page,
@@ -67,6 +129,7 @@ export default function RegisterTable({
   const canEdit = userRole === 'admin' || userRole === 'secretary';
   const canDelete = userRole === 'admin';
   const totalPages = Math.ceil(totalCount / pageSize);
+  const columns = registerColumnConfigs[register];
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -166,9 +229,7 @@ export default function RegisterTable({
                 >
                   {columns.map((col) => (
                     <TableCell key={col.key} className="text-sm text-gray-700">
-                      {col.render
-                        ? col.render(row[col.key], row)
-                        : (row[col.key] as string) || '—'}
+                      {renderCell(register, col.key, row[col.key])}
                     </TableCell>
                   ))}
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
