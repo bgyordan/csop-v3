@@ -32,7 +32,7 @@ export default async function OrdersPage({
     .range(from, to);
 
   if (q) {
-    query = query.or(`number.ilike.%${q}%,title.ilike.%${q}%`);
+    query = query.or(`number.ilike.%${q}%,title.ilike.%${q}%,employee.ilike.%${q}%`);
   }
 
   const { data, count } = await query;
