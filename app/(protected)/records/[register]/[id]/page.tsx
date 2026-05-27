@@ -18,6 +18,43 @@ const registerAccentColors: Record<RegisterType, string> = {
   contracts: 'bg-purple-50 border-purple-200 text-purple-700',
 };
 
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  leave_paid: 'Отпуск — платен',
+  leave_unpaid: 'Отпуск — неплатен',
+  leave_sick: 'Отпуск — болничен',
+  leave_maternity: 'Отпуск — майчинство',
+  mission: 'Командировка',
+  duty: 'Дежурство',
+  hire: 'Назначаване',
+  dismiss: 'Освобождаване',
+  education: 'Учебна дейност',
+  other: 'Друга',
+};
+
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  delivery: 'Доставка',
+  service: 'Услуга',
+  rent: 'Наем',
+  labor: 'Трудов',
+  civil: 'Граждански',
+  other: 'Друг',
+};
+
+const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  active: 'Активен',
+  in_progress: 'В изпълнение',
+  expired: 'Изтекъл',
+  terminated: 'Прекратен',
+};
+
+const RESOLUTION_LABELS: Record<string, string> = {
+  director: 'Директор (Светлана Иванова)',
+  zdasd: 'ЗДАСД (Йордан Йорданов)',
+  zdud: 'ЗДУД (Силвия Кьошкерян)',
+  accounting: 'Счетоводство (Радка Георгиева)',
+  specialists: 'Специалисти',
+};
+
 export default async function RecordViewPage({
   params,
 }: {
@@ -52,29 +89,42 @@ export default async function RecordViewPage({
   const canDelete = profile.role === 'admin';
   const reg = register as RegisterType;
   const accentClass = registerAccentColors[reg];
-
-  type RecordData = typeof record & {
-    from_whom?: string;
-    to_whom?: string;
-    title?: string;
-    counterparty?: string;
-    start_date?: string;
-    end_date?: string;
-    subject?: string;
-  };
-  const r = record as RecordData;
+  const r = record as Record<string, unknown>;
 
   const fields: { label: string; value: string | null | undefined }[] = [];
 
-  if (reg === 'incoming') fields.push({ label: 'От кого', value: r.from_whom });
-  if (reg === 'outgoing') fields.push({ label: 'До кого', value: r.to_whom });
-  if (reg === 'orders') fields.push({ label: 'Заглавие', value: r.title });
-  if (reg === 'contracts') {
-    fields.push({ label: 'Контрагент', value: r.counterparty });
-    fields.push({ label: 'Начална дата', value: formatBgDate(r.start_date) });
-    fields.push({ label: 'Крайна дата', value: formatBgDate(r.end_date) });
+  if (reg === 'incoming') {
+    fields.push({ label: 'От кого', value: r.from_whom as string });
+    fields.push({ label: 'Относно', value: r.subject as string });
+    if (r.resolution) fields.push({ label: 'Резолюция', value: RESOLUTION_LABELS[r.resolution as string] || r.resolution as string });
   }
-  if (reg !== 'orders') fields.push({ label: 'Относно', value: r.subject });
+
+  if (reg === 'outgoing') {
+    fields.push({ label: 'До кого', value: r.to_whom as string });
+    fields.push({ label: 'Относно', value: r.subject as string });
+    if (r.resolution) fields.push({ label: 'Резолюция', value: RESOLUTION_LABELS[r.resolution as string] || r.resolution as string });
+  }
+
+  if (reg === 'orders') {
+    fields.push({ label: 'Заглавие', value: r.title as string });
+    if (r.order_type) fields.push({ label: 'Вид заповед', value: ORDER_TYPE_LABELS[r.order_type as string] || r.order_type as string });
+    if (r.employee) fields.push({ label: 'Служител', value: r.employee as string });
+    if (r.destination) fields.push({ label: 'Дестинация / Място', value: r.destination as string });
+    if (r.from_date) fields.push({ label: 'От дата', value: formatBgDate(r.from_date as string) });
+    if (r.to_date) fields.push({ label: 'До дата', value: formatBgDate(r.to_date as string) });
+    if (r.days) fields.push({ label: 'Брой дни', value: String(r.days) });
+  }
+
+  if (reg === 'contracts') {
+    if (r.contract_type) fields.push({ label: 'Вид договор', value: CONTRACT_TYPE_LABELS[r.contract_type as string] || r.contract_type as string });
+    fields.push({ label: 'Контрагент', value: r.counterparty as string });
+    if (r.subject) fields.push({ label: 'Предмет на договора', value: r.subject as string });
+    if (r.start_date) fields.push({ label: 'Начална дата', value: formatBgDate(r.start_date as string) });
+    if (r.end_date) fields.push({ label: 'Крайна дата', value: formatBgDate(r.end_date as string) });
+    if (r.value) fields.push({ label: 'Стойност', value: `${Number(r.value).toFixed(2)} лв.` });
+    if (r.responsible_person) fields.push({ label: 'Отговорно лице', value: r.responsible_person as string });
+    if (r.status) fields.push({ label: 'Статус', value: CONTRACT_STATUS_LABELS[r.status as string] || r.status as string });
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
@@ -91,7 +141,7 @@ export default async function RecordViewPage({
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {reg === 'orders' ? r.title : r.subject || `Запис №${r.number}`}
+              {reg === 'orders' ? r.title as string : r.subject as string || `Запис №${r.number}`}
             </h1>
           </div>
           <div className="flex gap-2 flex-shrink-0">
@@ -119,7 +169,7 @@ export default async function RecordViewPage({
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-0.5">Регистрационен номер</p>
-                <p className="text-lg font-bold text-gray-900 font-mono">{r.number}</p>
+                <p className="text-lg font-bold text-gray-900 font-mono">{r.number as string}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -128,7 +178,7 @@ export default async function RecordViewPage({
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-0.5">Дата</p>
-                <p className="text-lg font-semibold text-gray-900">{formatBgDate(r.date)}</p>
+                <p className="text-lg font-semibold text-gray-900">{formatBgDate(r.date as string)}</p>
               </div>
             </div>
           </div>
@@ -143,8 +193,10 @@ export default async function RecordViewPage({
 
             {r.description && (
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Описание</p>
-                <p className="text-gray-800 whitespace-pre-wrap">{r.description}</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">
+                  {reg === 'contracts' ? 'Бележки' : 'Описание'}
+                </p>
+                <p className="text-gray-800 whitespace-pre-wrap">{r.description as string}</p>
               </div>
             )}
           </div>
@@ -154,14 +206,14 @@ export default async function RecordViewPage({
             <div className="mt-6 pt-6 border-t border-gray-100">
               <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Прикачен файл</p>
               <a
-                href={r.file_url}
+                href={r.file_url as string}
                 target="_blank"
                 rel="noopener noreferrer"
-                download={r.file_name}
+                download={r.file_name as string}
                 className="inline-flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
               >
                 <FileText size={18} className="text-blue-600 flex-shrink-0" />
-                <span className="text-sm text-blue-700 font-medium truncate max-w-xs">{r.file_name}</span>
+                <span className="text-sm text-blue-700 font-medium truncate max-w-xs">{r.file_name as string}</span>
                 <Download size={16} className="text-blue-500 flex-shrink-0 ml-auto" />
               </a>
             </div>
@@ -171,7 +223,7 @@ export default async function RecordViewPage({
           <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400">
             <p>
               Създаден от: {creator?.full_name || creator?.email || 'Неизвестен'} •{' '}
-              {formatBgDate(r.created_at)}
+              {formatBgDate(r.created_at as string)}
             </p>
           </div>
         </CardContent>
