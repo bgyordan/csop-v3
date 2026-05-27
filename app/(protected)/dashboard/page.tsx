@@ -27,13 +27,6 @@ const registerBadgeColors: Record<string, string> = {
   contracts: 'bg-purple-50 text-purple-700 border-purple-200',
 };
 
-const CONTRACT_STATUS_LABELS: Record<string, string> = {
-  active: 'Активен',
-  in_progress: 'В изпълнение',
-  expired: 'Изтекъл',
-  terminated: 'Прекратен',
-};
-
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -43,6 +36,7 @@ export default async function DashboardPage() {
   const canEdit = profile?.role === 'admin' || profile?.role === 'secretary';
 
   const today = new Date();
+  const currentYear = today.getFullYear();
   const in30Days = new Date(today);
   in30Days.setDate(today.getDate() + 30);
   const todayStr = today.toISOString().split('T')[0];
@@ -53,6 +47,9 @@ export default async function DashboardPage() {
     { count: outgoingCount },
     { count: ordersCount },
     { count: contractsCount },
+    { data: lastIncoming },
+    { data: lastOutgoing },
+    { data: lastOrders },
     { data: recentIncoming },
     { data: recentOutgoing },
     { data: recentOrders },
@@ -63,12 +60,22 @@ export default async function DashboardPage() {
     supabase.from('outgoing').select('*', { count: 'exact', head: true }),
     supabase.from('orders').select('*', { count: 'exact', head: true }),
     supabase.from('contracts').select('*', { count: 'exact', head: true }),
+    supabase.from('incoming').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
+    supabase.from('outgoing').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
+    supabase.from('orders').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
     supabase.from('incoming').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('outgoing').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(1),
     supabase.from('contracts').select('*').order('created_at', { ascending: false }).limit(1),
     supabase.from('contracts').select('*').gte('end_date', todayStr).lte('end_date', in30DaysStr).order('end_date', { ascending: true }),
   ]);
+
+  const lastNumbers = {
+    incoming: (lastIncoming?.[0] as { number: string } | undefined)?.number || null,
+    outgoing: (lastOutgoing?.[0] as { number: string } | undefined)?.number || null,
+    orders: (lastOrders?.[0] as { number: string } | undefined)?.number || null,
+    contracts: null,
+  };
 
   type RecentItem = { id: string; number: string; date: string; created_at: string; register: 'incoming' | 'outgoing' | 'orders' | 'contracts'; label: string };
   const ri = (recentIncoming || []) as Array<{ id: string; number: string; date: string; created_at: string; subject: string }>;
@@ -111,17 +118,24 @@ export default async function DashboardPage() {
         {counts.map(({ key, count }) => {
           const Icon = registerIcons[key];
           const colorClass = registerColors[key];
+          const lastNum = lastNumbers[key];
           return (
             <Link key={key} href={`/${key}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer border-0 shadow-sm">
                 <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}>
                       <Icon size={20} />
                     </div>
                     <span className="text-3xl font-bold text-gray-900">{count}</span>
                   </div>
-                  <p className="text-sm font-medium text-gray-600">{REGISTER_LABELS[key]}</p>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{REGISTER_LABELS[key]}</p>
+                  {lastNum && (
+                    <p className="text-xs text-gray-400 font-mono">последен: {lastNum}</p>
+                  )}
+                  {!lastNum && count > 0 && (
+                    <p className="text-xs text-gray-300 font-mono">няма за {currentYear}</p>
+                  )}
                 </CardContent>
               </Card>
             </Link>
