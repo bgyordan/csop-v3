@@ -26,10 +26,23 @@ export default async function NewRecordPage({
     redirect(`/${register}`);
   }
 
-  // Get next number
-  const { count } = await supabase.from(register as RegisterType).select('*', { count: 'exact', head: true });
-  const nextNum = (count || 0) + 1;
-  const nextNumber = `${nextNum}/${getCurrentYear()}`;
+  // Get next number - взима максималния номер за текущата година
+  const currentYear = getCurrentYear();
+  const { data: lastRecord } = await supabase
+    .from(register as RegisterType)
+    .select('number')
+    .ilike('number', `%/${currentYear}`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let nextNum = 1;
+  if (lastRecord?.number) {
+    const parts = String(lastRecord.number).split('/');
+    const lastNum = parseInt(parts[0]);
+    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+  }
+  const nextNumber = `${nextNum}/${currentYear}`;
 
   return (
     <RecordForm
