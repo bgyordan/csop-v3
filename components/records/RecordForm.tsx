@@ -58,6 +58,14 @@ const RESPONSIBLE_PERSONS = [
   'Друго лице',
 ];
 
+const ASSIGNEES = [
+  { value: '', label: 'Изберете отговорник...' },
+  { value: 'Светлана Иванова', label: 'Светлана Иванова (Директор)' },
+  { value: 'Йордан Йорданов', label: 'Йордан Йорданов (ЗДАСД)' },
+  { value: 'Силвия Кьошкерян', label: 'Силвия Кьошкерян (ЗДУД)' },
+  { value: 'Радка Георгиева', label: 'Радка Георгиева (Счетоводство)' },
+];
+
 const RESOLUTIONS = [
   { value: '', label: 'Изберете резолюция...' },
   { value: 'director', label: 'Директор (Светлана Иванова)' },
@@ -72,7 +80,7 @@ const isMission = (type: string) => type === 'mission' || type === 'duty';
 
 interface RecordFormProps {
   register: RegisterType;
-  initialData?: Record<string, unknown>;
+  initialData?: Record<string, string>;
   nextNumber?: string;
   userId: string;
   mode: 'create' | 'edit';
@@ -85,43 +93,45 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const today = new Date().toISOString().slice(0, 10);
 
   const [number, setNumber] = useState<string>(
-    isEdit ? String(initialData?.number || '') : (nextNumber || `1/${getCurrentYear()}`)
+    isEdit ? (initialData?.number || '') : (nextNumber || `1/${getCurrentYear()}`)
   );
-  const [date, setDate] = useState<string>(isEdit ? String(initialData?.date || today) : today);
+  const [date] = useState<string>(isEdit ? (initialData?.date || today) : today);
 
   // Incoming/Outgoing
-  const [fromWhom, setFromWhom] = useState(isEdit ? String(initialData?.from_whom || '') : '');
-  const [toWhom, setToWhom] = useState(isEdit ? String(initialData?.to_whom || '') : '');
-  const [subject, setSubject] = useState(isEdit ? String(initialData?.subject || '') : '');
-  const [resolution, setResolution] = useState(isEdit ? String(initialData?.resolution || '') : '');
-  const [description, setDescription] = useState(isEdit ? String(initialData?.description || '') : '');
+  const [fromWhom, setFromWhom] = useState(isEdit ? (initialData?.from_whom || '') : '');
+  const [toWhom, setToWhom] = useState(isEdit ? (initialData?.to_whom || '') : '');
+  const [subject, setSubject] = useState(isEdit ? (initialData?.subject || '') : '');
+  const [resolution, setResolution] = useState(isEdit ? (initialData?.resolution || '') : '');
+  const [description, setDescription] = useState(isEdit ? (initialData?.description || '') : '');
+  const [docDate, setDocDate] = useState(isEdit ? (initialData?.doc_date || '') : '');
+  const [deadline, setDeadline] = useState(isEdit ? (initialData?.deadline || '') : '');
+  const [assignee, setAssignee] = useState(isEdit ? (initialData?.assignee || '') : '');
 
   // Orders
-  const [title, setTitle] = useState(isEdit ? String(initialData?.title || '') : '');
-  const [orderType, setOrderType] = useState<OrderType | ''>(isEdit ? String(initialData?.order_type || '') as OrderType : '');
-  const [employee, setEmployee] = useState(isEdit ? String(initialData?.employee || '') : '');
-  const [destination, setDestination] = useState(isEdit ? String(initialData?.destination || '') : '');
-  const [fromDate, setFromDate] = useState(isEdit ? String(initialData?.from_date || '') : '');
-  const [toDate, setToDate] = useState(isEdit ? String(initialData?.to_date || '') : '');
-  const [days, setDays] = useState(isEdit ? String(initialData?.days || '') : '');
+  const [title, setTitle] = useState(isEdit ? (initialData?.title || '') : '');
+  const [orderType, setOrderType] = useState<OrderType | ''>(isEdit ? (initialData?.order_type || '') as OrderType : '');
+  const [employee, setEmployee] = useState(isEdit ? (initialData?.employee || '') : '');
+  const [destination, setDestination] = useState(isEdit ? (initialData?.destination || '') : '');
+  const [fromDate, setFromDate] = useState(isEdit ? (initialData?.from_date || '') : '');
+  const [toDate, setToDate] = useState(isEdit ? (initialData?.to_date || '') : '');
+  const [days, setDays] = useState(isEdit ? (initialData?.days || '') : '');
 
   // Contracts
-  const [counterparty, setCounterparty] = useState(isEdit ? String(initialData?.counterparty || '') : '');
-  const [contractType, setContractType] = useState<ContractType | ''>(isEdit ? String(initialData?.contract_type || '') as ContractType : '');
-  const [startDate, setStartDate] = useState(isEdit ? String(initialData?.start_date || '') : today);
-  const [endDate, setEndDate] = useState(isEdit ? String(initialData?.end_date || '') : '');
-  const [contractValue, setContractValue] = useState(isEdit ? String(initialData?.value || '') : '');
-  const [responsiblePerson, setResponsiblePerson] = useState(isEdit ? String(initialData?.responsible_person || '') : '');
+  const [counterparty, setCounterparty] = useState(isEdit ? (initialData?.counterparty || '') : '');
+  const [contractType, setContractType] = useState<ContractType | ''>(isEdit ? (initialData?.contract_type || '') as ContractType : '');
+  const [startDate, setStartDate] = useState(isEdit ? (initialData?.start_date || '') : today);
+  const [endDate, setEndDate] = useState(isEdit ? (initialData?.end_date || '') : '');
+  const [contractValue, setContractValue] = useState(isEdit ? (initialData?.value || '') : '');
+  const [responsiblePerson, setResponsiblePerson] = useState(isEdit ? (initialData?.responsible_person || '') : '');
   const [customResponsible, setCustomResponsible] = useState('');
   const [showCustomResponsible, setShowCustomResponsible] = useState(false);
-  const [contractStatus, setContractStatus] = useState<ContractStatus>(isEdit ? String(initialData?.status || 'active') as ContractStatus : 'active');
+  const [contractStatus, setContractStatus] = useState<ContractStatus>(isEdit ? (initialData?.status || 'active') as ContractStatus : 'active');
 
   const [file, setFile] = useState<File | null>(null);
-  const [existingFileName, setExistingFileName] = useState(isEdit ? String(initialData?.file_name || '') : '');
+  const [existingFileName, setExistingFileName] = useState(isEdit ? (initialData?.file_name || '') : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Days calculation for orders
   const calcDays = (from: string, to: string) => {
     if (from && to) {
       const diff = Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -129,7 +139,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
   };
 
-  // Days until contract expiry
   const daysUntilExpiry = endDate ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const expiryColor = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? 'text-red-600' : daysUntilExpiry < 30 ? 'text-amber-600' : 'text-teal-600';
   const expiryText = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? `Изтекъл преди ${Math.abs(daysUntilExpiry)} дни!` : daysUntilExpiry === 0 ? 'Изтича днес!' : daysUntilExpiry < 30 ? `Изтича след ${daysUntilExpiry} дни` : `${daysUntilExpiry} дни остават`;
@@ -150,22 +159,20 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     setLoading(true);
     setError('');
 
-    // Валидация за договори
     if (register === 'contracts' && startDate && endDate && endDate < startDate) {
       setError('Крайната дата не може да е преди началната дата!');
       setLoading(false);
       return;
     }
 
-    // Валидация за заповеди с дати
     if (register === 'orders' && fromDate && toDate && toDate < fromDate) {
       setError('Крайната дата не може да е преди началната дата!');
       setLoading(false);
       return;
     }
 
-    let fileUrl = isEdit ? String(initialData?.file_url || '') : '';
-    let fileName = isEdit ? String(initialData?.file_name || '') : '';
+    let fileUrl = isEdit ? (initialData?.file_url || '') : '';
+    let fileName = isEdit ? (initialData?.file_name || '') : '';
 
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
@@ -201,18 +208,22 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       description,
       file_url: fileUrl,
       file_name: fileName,
+      assignee,
     };
 
     if (register === 'incoming') {
       payload.from_whom = fromWhom;
       payload.subject = subject;
       payload.resolution = resolution;
+      payload.doc_date = docDate || null;
+      payload.deadline = deadline || null;
     }
 
     if (register === 'outgoing') {
       payload.to_whom = toWhom;
       payload.subject = subject;
       payload.resolution = resolution;
+      payload.doc_date = docDate || null;
     }
 
     if (register === 'orders') {
@@ -242,7 +253,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
 
     let dbError;
     if (isEdit) {
-      const { error } = await supabase.from(register).update(payload).eq('id', String(initialData?.id));
+      const { error } = await supabase.from(register).update(payload).eq('id', initialData?.id || '');
       dbError = error;
     } else {
       const { error } = await supabase.from(register).insert(payload);
@@ -281,15 +292,16 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Номер и дата */}
+
+            {/* Номер и дата на завеждане */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <Label htmlFor="number">Регистрационен номер *</Label>
                 <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="1/2026" required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="date">Дата *</Label>
-                <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                <Label htmlFor="date">Дата на завеждане</Label>
+                <Input id="date" type="date" value={date} readOnly className="bg-gray-50 cursor-not-allowed" />
               </div>
             </div>
 
@@ -303,6 +315,16 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
                   <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="doc_date">Дата на документа — незадължително</Label>
+                    <Input id="doc_date" type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="deadline">Срок за отговор — незадължително</Label>
+                    <Input id="deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="resolution">Резолюция</Label>
@@ -323,6 +345,10 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
                   <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="doc_date">Дата на документа — незадължително</Label>
+                  <Input id="doc_date" type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="resolution">Резолюция</Label>
@@ -441,6 +467,14 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 </div>
               </>
             )}
+
+            {/* Отговорник — за всички */}
+            <div className="space-y-1.5">
+              <Label htmlFor="assignee">Отговорник — незадължително</Label>
+              <select id="assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+              </select>
+            </div>
 
             {/* Описание */}
             <div className="space-y-1.5">
