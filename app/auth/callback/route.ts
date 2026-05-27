@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const origin = requestUrl.origin;
 
   if (code) {
     const cookieStore = await cookies();
@@ -26,18 +27,21 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    await supabase.auth.exchangeCodeForSession(code);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from('profiles').upsert({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || user.email,
-        role: 'viewer'
-      }, { onConflict: 'id' });
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+          role: 'viewer'
+        }, { onConflict: 'id' });
+      }
+      return NextResponse.redirect(`${origin}/dashboard`);
     }
   }
 
-  return NextResponse.redirect(new URL('/dashboard', request.url));
+  return NextResponse.redirect(`${origin}/login`);
 }
