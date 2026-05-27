@@ -191,7 +191,7 @@ export default async function RecordViewPage({
               </div>
             ))}
 
-            {r.description && (
+            {(r.description as string) && (
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">
                   {reg === 'contracts' ? 'Бележки' : 'Описание'}
