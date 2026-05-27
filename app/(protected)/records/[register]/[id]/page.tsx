@@ -55,6 +55,13 @@ const RESOLUTION_LABELS: Record<string, string> = {
   specialists: 'Специалисти',
 };
 
+const SEND_METHOD_LABELS: Record<string, string> = {
+  email: 'Имейл',
+  courier: 'Куриер / Български пощи',
+  ssev: 'ССЕВ',
+  hand: 'На ръка',
+};
+
 export default async function RecordViewPage({
   params,
 }: {
@@ -89,7 +96,6 @@ export default async function RecordViewPage({
   const canDelete = profile.role === 'admin';
   const reg = register as RegisterType;
   const accentClass = registerAccentColors[reg];
-
   const r: Record<string, string> = record as Record<string, string>;
 
   const fields: { label: string; value: string | null | undefined }[] = [];
@@ -98,22 +104,43 @@ export default async function RecordViewPage({
     fields.push({ label: 'От кого', value: r.from_whom });
     fields.push({ label: 'Относно', value: r.subject });
     if (r.resolution) fields.push({ label: 'Резолюция', value: RESOLUTION_LABELS[r.resolution] || r.resolution });
+    if (r.doc_date) fields.push({ label: 'Дата на документа', value: formatBgDate(r.doc_date) });
+    if (r.deadline) fields.push({ label: 'Срок за отговор', value: formatBgDate(r.deadline) });
+    if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
   }
 
   if (reg === 'outgoing') {
     fields.push({ label: 'До кого', value: r.to_whom });
     fields.push({ label: 'Относно', value: r.subject });
-    if (r.resolution) fields.push({ label: 'Резолюция', value: RESOLUTION_LABELS[r.resolution] || r.resolution });
+    if (r.reply_to) fields.push({ label: 'В отговор на (Вх. №)', value: r.reply_to });
+    if (r.send_method) fields.push({ label: 'Изпратено по', value: SEND_METHOD_LABELS[r.send_method] || r.send_method });
+    if (r.doc_date) fields.push({ label: 'Дата на документа', value: formatBgDate(r.doc_date) });
+    if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
   }
 
   if (reg === 'orders') {
     fields.push({ label: 'Заглавие', value: r.title });
-    if (r.order_type) fields.push({ label: 'Вид заповед', value: ORDER_TYPE_LABELS[r.order_type] || r.order_type });
+    if (r.order_type_code) fields.push({ label: 'Вид заповед', value: r.order_type_code });
+    if (r.order_type) fields.push({ label: 'Категория', value: ORDER_TYPE_LABELS[r.order_type] || r.order_type });
     if (r.employee) fields.push({ label: 'Служител', value: r.employee });
     if (r.destination) fields.push({ label: 'Дестинация / Място', value: r.destination });
     if (r.from_date) fields.push({ label: 'От дата', value: formatBgDate(r.from_date) });
     if (r.to_date) fields.push({ label: 'До дата', value: formatBgDate(r.to_date) });
     if (r.days) fields.push({ label: 'Брой дни', value: r.days });
+    if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
+
+    // Номер в дело
+    if (r.order_type_code) {
+      const currentYear = new Date().getFullYear();
+      const { data: position } = await supabase.rpc('get_order_position_in_type', {
+        order_id: id,
+        order_code: r.order_type_code,
+        current_year: currentYear,
+      });
+      if (position) {
+        fields.push({ label: `Номер в дело ${r.order_type_code}`, value: `${position}/${currentYear}` });
+      }
+    }
   }
 
   if (reg === 'contracts') {
@@ -125,6 +152,7 @@ export default async function RecordViewPage({
     if (r.value) fields.push({ label: 'Стойност', value: `${Number(r.value).toFixed(2)} лв.` });
     if (r.responsible_person) fields.push({ label: 'Отговорно лице', value: r.responsible_person });
     if (r.status) fields.push({ label: 'Статус', value: CONTRACT_STATUS_LABELS[r.status] || r.status });
+    if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
   }
 
   return (
@@ -178,7 +206,7 @@ export default async function RecordViewPage({
                 <Calendar size={16} className="text-gray-500" />
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-0.5">Дата</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-0.5">Дата на завеждане</p>
                 <p className="text-lg font-semibold text-gray-900">{formatBgDate(r.date)}</p>
               </div>
             </div>
