@@ -27,7 +27,6 @@ export default async function NewRecordPage({
 
   const currentYear = getCurrentYear();
 
-  // За заповеди номерът се генерира при избор на вид
   if (register === 'orders') {
     const { data: orderTypes } = await supabase.from('order_types').select('*').order('code');
     return (
@@ -41,22 +40,22 @@ export default async function NewRecordPage({
     );
   }
 
-  // За останалите - старата логика
-  const { data: lastRecord } = await supabase
+  // Взимаме всички номера за годината и намираме максималния
+  const { data: allRecords } = await supabase
     .from(register as RegisterType)
     .select('number')
-    .ilike('number', `%/${currentYear}`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .ilike('number', `%/${currentYear}`);
 
-  let nextNum = 1;
-  if (lastRecord?.number) {
-    const parts = String(lastRecord.number).split('/');
-    const lastNum = parseInt(parts[0]);
-    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+  let maxNum = 0;
+  if (allRecords && allRecords.length > 0) {
+    for (const rec of allRecords) {
+      const parts = String(rec.number).split('/');
+      const num = parseInt(parts[0]);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
   }
-  const nextNumber = `${nextNum}/${currentYear}`;
+
+  const nextNumber = `${maxNum + 1}/${currentYear}`;
 
   return (
     <RecordForm
