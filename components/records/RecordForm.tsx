@@ -78,15 +78,22 @@ const RESOLUTIONS = [
 const isLeave = (type: string) => type.startsWith('leave');
 const isMission = (type: string) => type === 'mission' || type === 'duty';
 
+interface OrderTypeItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface RecordFormProps {
   register: RegisterType;
   initialData?: Record<string, string>;
   nextNumber?: string;
   userId: string;
   mode: 'create' | 'edit';
+  orderTypes?: OrderTypeItem[];
 }
 
-export default function RecordForm({ register, initialData, nextNumber, userId, mode }: RecordFormProps) {
+export default function RecordForm({ register, initialData, nextNumber, userId, mode, orderTypes = [] }: RecordFormProps) {
   const router = useRouter();
   const supabase = createClient();
   const isEdit = mode === 'edit';
@@ -111,6 +118,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
 
   // Orders
   const [title, setTitle] = useState(isEdit ? (initialData?.title || '') : '');
+  const [orderTypeCode, setOrderTypeCode] = useState(isEdit ? (initialData?.order_type_code || '') : '');
+  const [generatingNumber, setGeneratingNumber] = useState(false);
   const [orderType, setOrderType] = useState<OrderType | ''>(isEdit ? (initialData?.order_type || '') as OrderType : '');
   const [employee, setEmployee] = useState(isEdit ? (initialData?.employee || '') : '');
   const [destination, setDestination] = useState(isEdit ? (initialData?.destination || '') : '');
@@ -133,6 +142,20 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [existingFileName, setExistingFileName] = useState(isEdit ? (initialData?.file_name || '') : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const generateOrderNumber = async (code: string) => {
+    if (!code) return;
+    setGeneratingNumber(true);
+    const currentYear = new Date().getFullYear();
+    const { data, error } = await supabase.rpc('get_next_order_number', {
+      order_code: code,
+      current_year: currentYear,
+    });
+    if (!error && data) {
+      setNumber(data);
+    }
+    setGeneratingNumber(false);
+  };
 
   const calcDays = (from: string, to: string) => {
     if (from && to) {
@@ -232,6 +255,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     if (register === 'orders') {
       payload.title = title;
       payload.order_type = orderType;
+      payload.order_type_code = orderTypeCode;
       payload.employee = employee;
       payload.destination = destination;
       payload.from_date = fromDate || null;
@@ -370,18 +394,40 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
             {register === 'orders' && (
               <>
                 <div className="space-y-1.5">
+                  <Label htmlFor="order_type_code">Вид заповед *</Label>
+                  <select
+                    id="order_type_code"
+                    value={orderTypeCode}
+                    onChange={async (e) => {
+                      setOrderTypeCode(e.target.value);
+                      if (!isEdit) await generateOrderNumber(e.target.value);
+                    }}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Изберете вид...</option>
+                    {orderTypes.map(t => (
+                      <option key={t.code} value={t.code}>{t.code} — {t.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="number">Регистрационен номер</Label>
+                  <Input
+                    id="number"
+                    value={generatingNumber ? 'Генериране...' : number}
+                    readOnly
+                    className="bg-gray-50 cursor-not-allowed font-mono"
+                    placeholder="Ще се генерира автоматично"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="title">Заглавие *</Label>
                   <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Заглавие на заповедта" required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="order_type">Вид заповед *</Label>
-                  <select id="order_type" value={orderType} onChange={(e) => setOrderType(e.target.value as OrderType)} required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    {ORDER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="employee">Служител *</Label>
-                  <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" required />
+                  <Label htmlFor="employee">Служител — незадължително</Label>
+                  <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" />
                 </div>
 
                 {isLeave(orderType) && (
