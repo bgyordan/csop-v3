@@ -213,7 +213,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       }
 
       const ext = file.name.split('.').pop();
-      const filePath = `${register}/${Date.now()}_${number.replace(/[\s\/]/g, '-')}.${ext}`;
+      const filePath = `${register}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file, { upsert: true });
 
       if (uploadError) {
