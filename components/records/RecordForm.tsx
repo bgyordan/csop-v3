@@ -10,10 +10,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Upload, X, FileText, CircleAlert as AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+
+type OrderType = 'leave_paid' | 'leave_unpaid' | 'leave_sick' | 'leave_maternity' | 'mission' | 'duty' | 'hire' | 'dismiss' | 'education' | 'other';
+
+const ORDER_TYPES: { value: OrderType | ''; label: string }[] = [
+  { value: '', label: 'Изберете вид...' },
+  { value: 'leave_paid', label: 'Отпуск — платен' },
+  { value: 'leave_unpaid', label: 'Отпуск — неплатен' },
+  { value: 'leave_sick', label: 'Отпуск — болничен' },
+  { value: 'leave_maternity', label: 'Отпуск — майчинство' },
+  { value: 'mission', label: 'Командировка' },
+  { value: 'duty', label: 'Дежурство' },
+  { value: 'hire', label: 'Назначаване' },
+  { value: 'dismiss', label: 'Освобождаване' },
+  { value: 'education', label: 'Учебна дейност' },
+  { value: 'other', label: 'Друга' },
+];
+
+const isLeave = (type: string) => type.startsWith('leave');
+const isMission = (type: string) => type === 'mission' || type === 'duty';
 
 interface RecordFormProps {
   register: RegisterType;
@@ -44,21 +63,45 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [startDate, setStartDate] = useState(isEdit ? String(initialData?.start_date || '') : '');
   const [endDate, setEndDate] = useState(isEdit ? String(initialData?.end_date || '') : '');
   const [description, setDescription] = useState(isEdit ? String(initialData?.description || '') : '');
+
+  // Order specific fields
+  const [orderType, setOrderType] = useState<OrderType | ''>(isEdit ? String(initialData?.order_type || '') as OrderType : '');
+  const [employee, setEmployee] = useState(isEdit ? String(initialData?.employee || '') : '');
+  const [destination, setDestination] = useState(isEdit ? String(initialData?.destination || '') : '');
+  const [fromDate, setFromDate] = useState(isEdit ? String(initialData?.from_date || '') : '');
+  const [toDate, setToDate] = useState(isEdit ? String(initialData?.to_date || '') : '');
+  const [days, setDays] = useState(isEdit ? String(initialData?.days || '') : '');
+
   const [file, setFile] = useState<File | null>(null);
   const [existingFileName, setExistingFileName] = useState(isEdit ? String(initialData?.file_name || '') : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const calcDays = (from: string, to: string) => {
+    if (from && to) {
+      const diff = Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (diff > 0) setDays(String(diff));
+    }
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     // Валидация за договори
-if (register === 'contracts' && startDate && endDate && endDate < startDate) {
-  setError('Крайната дата не може да е преди началната дата!');
-  setLoading(false);
-  return;
-}
+    if (register === 'contracts' && startDate && endDate && endDate < startDate) {
+      setError('Крайната дата не може да е преди началната дата!');
+      setLoading(false);
+      return;
+    }
+
+    // Валидация за заповеди с дати
+    if (register === 'orders' && fromDate && toDate && toDate < fromDate) {
+      setError('Крайната дата не може да е преди началната дата!');
+      setLoading(false);
+      return;
+    }
 
     let fileUrl = isEdit ? String(initialData?.file_url || '') : '';
     let fileName = isEdit ? String(initialData?.file_name || '') : '';
@@ -102,7 +145,15 @@ if (register === 'contracts' && startDate && endDate && endDate < startDate) {
     if (register === 'incoming') payload.from_whom = fromWhom;
     if (register === 'outgoing') payload.to_whom = toWhom;
     if (register === 'incoming' || register === 'outgoing' || register === 'contracts') payload.subject = subject;
-    if (register === 'orders') payload.title = title;
+    if (register === 'orders') {
+      payload.title = title;
+      payload.order_type = orderType;
+      payload.employee = employee;
+      payload.destination = destination;
+      payload.from_date = fromDate || null;
+      payload.to_date = toDate || null;
+      payload.days = days ? parseInt(days) : null;
+    }
     if (register === 'contracts') {
       payload.counterparty = counterparty;
       payload.start_date = startDate || null;
@@ -217,16 +268,117 @@ if (register === 'contracts' && startDate && endDate && endDate < startDate) {
             )}
 
             {register === 'orders' && (
-              <div className="space-y-1.5">
-                <Label htmlFor="title">Заглавие *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Заглавие на заповедта"
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="title">Заглавие *</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Заглавие на заповедта"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="order_type">Вид заповед *</Label>
+                  <select
+                    id="order_type"
+                    value={orderType}
+                    onChange={(e) => setOrderType(e.target.value as OrderType)}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    {ORDER_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="employee">Служител *</Label>
+                  <Input
+                    id="employee"
+                    value={employee}
+                    onChange={(e) => setEmployee(e.target.value)}
+                    placeholder="Име и длъжност"
+                    required
+                  />
+                </div>
+
+                {isLeave(orderType) && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="from_date">От дата *</Label>
+                        <Input
+                          id="from_date"
+                          type="date"
+                          value={fromDate}
+                          onChange={(e) => { setFromDate(e.target.value); calcDays(e.target.value, toDate); }}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="to_date">До дата *</Label>
+                        <Input
+                          id="to_date"
+                          type="date"
+                          value={toDate}
+                          onChange={(e) => { setToDate(e.target.value); calcDays(fromDate, e.target.value); }}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="days">Брой дни *</Label>
+                      <Input
+                        id="days"
+                        type="number"
+                        min="1"
+                        value={days}
+                        onChange={(e) => setDays(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                {isMission(orderType) && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="destination">Дестинация / Място *</Label>
+                      <Input
+                        id="destination"
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        placeholder="Град, институция..."
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="from_date">От дата</Label>
+                        <Input
+                          id="from_date"
+                          type="date"
+                          value={fromDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="to_date">До дата</Label>
+                        <Input
+                          id="to_date"
+                          type="date"
+                          value={toDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
             )}
 
             {register === 'contracts' && (
