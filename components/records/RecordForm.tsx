@@ -166,7 +166,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
   };
 
-  const daysUntilExpiry = endDate ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  const daysUntilExpiry = (endDate && startDate && endDate >= startDate) ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const expiryColor = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? 'text-red-600' : daysUntilExpiry < 30 ? 'text-amber-600' : 'text-teal-600';
   const expiryText = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? `Изтекъл преди ${Math.abs(daysUntilExpiry)} дни!` : daysUntilExpiry === 0 ? 'Изтича днес!' : daysUntilExpiry < 30 ? `Изтича след ${daysUntilExpiry} дни` : `${daysUntilExpiry} дни остават`;
 
@@ -215,7 +215,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       }
 
       const ext = file.name.split('.').pop();
-      const filePath = `${register}/${Date.now()}_${number.replace('/', '-')}.${ext}`;
+      const filePath = `${register}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file, { upsert: true });
 
       if (uploadError) {
