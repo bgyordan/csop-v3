@@ -131,7 +131,7 @@ export default async function DashboardPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-600 mb-1">{REGISTER_LABELS[key]}</p>
                   {lastNum && (
-                    <p className="text-xs text-gray-400 font-mono">последен: {lastNum}</p>
+                    <p className="text-sm text-gray-500 font-mono font-medium">№ {lastNum}</p>
                   )}
                   {!lastNum && count > 0 && (
                     <p className="text-xs text-gray-300 font-mono">няма за {currentYear}</p>
