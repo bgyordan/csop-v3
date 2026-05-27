@@ -100,6 +100,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   // Incoming/Outgoing
   const [fromWhom, setFromWhom] = useState(isEdit ? (initialData?.from_whom || '') : '');
   const [toWhom, setToWhom] = useState(isEdit ? (initialData?.to_whom || '') : '');
+  const [replyTo, setReplyTo] = useState(isEdit ? (initialData?.reply_to || '') : '');
+  const [sendMethod, setSendMethod] = useState(isEdit ? (initialData?.send_method || '') : '');
   const [subject, setSubject] = useState(isEdit ? (initialData?.subject || '') : '');
   const [resolution, setResolution] = useState(isEdit ? (initialData?.resolution || '') : '');
   const [description, setDescription] = useState(isEdit ? (initialData?.description || '') : '');
@@ -222,7 +224,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     if (register === 'outgoing') {
       payload.to_whom = toWhom;
       payload.subject = subject;
-      payload.resolution = resolution;
+      payload.reply_to = replyTo;
+      payload.send_method = sendMethod;
       payload.doc_date = docDate || null;
     }
 
@@ -347,13 +350,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="doc_date">Дата на документа — незадължително</Label>
-                  <Input id="doc_date" type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
+                  <Label htmlFor="reply_to">В отговор на (Вх. №) — незадължително</Label>
+                  <Input id="reply_to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="напр. 5/2026" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="resolution">Резолюция</Label>
-                  <select id="resolution" value={resolution} onChange={(e) => setResolution(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    {RESOLUTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  <Label htmlFor="send_method">Изпратено по</Label>
+                  <select id="send_method" value={sendMethod} onChange={(e) => setSendMethod(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">Изберете начин...</option>
+                    <option value="email">Имейл</option>
+                    <option value="courier">Куриер / Български пощи</option>
+                    <option value="ssev">ССЕВ</option>
+                    <option value="hand">На ръка</option>
                   </select>
                 </div>
               </>
