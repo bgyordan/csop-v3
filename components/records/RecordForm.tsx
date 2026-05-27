@@ -17,7 +17,7 @@ import Link from 'next/link';
 
 type OrderType = 'leave_paid' | 'leave_unpaid' | 'leave_sick' | 'leave_maternity' | 'mission' | 'duty' | 'hire' | 'dismiss' | 'education' | 'other';
 type ContractType = 'delivery' | 'service' | 'rent' | 'labor' | 'civil' | 'other';
-type ContractStatus = 'active' | 'in_progress' | 'expired' | 'terminated';
+type ContractStatus = 'in_progress' | 'expired' | 'terminated';
 
 const ORDER_TYPES: { value: OrderType | ''; label: string }[] = [
   { value: '', label: 'Изберете вид...' },
@@ -44,7 +44,6 @@ const CONTRACT_TYPES: { value: ContractType | ''; label: string }[] = [
 ];
 
 const CONTRACT_STATUSES: { value: ContractStatus; label: string }[] = [
-  { value: 'active', label: 'Активен' },
   { value: 'in_progress', label: 'В изпълнение' },
   { value: 'expired', label: 'Изтекъл' },
   { value: 'terminated', label: 'Прекратен' },
@@ -136,7 +135,10 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [responsiblePerson, setResponsiblePerson] = useState(isEdit ? (initialData?.responsible_person || '') : '');
   const [customResponsible, setCustomResponsible] = useState('');
   const [showCustomResponsible, setShowCustomResponsible] = useState(false);
-  const [contractStatus, setContractStatus] = useState<ContractStatus>(isEdit ? (initialData?.status || 'active') as ContractStatus : 'active');
+  const [contractStatus, setContractStatus] = useState<ContractStatus>(isEdit ? (initialData?.status || 'in_progress') as ContractStatus : 'in_progress');
+  const [contactPerson, setContactPerson] = useState(isEdit ? (initialData?.contact_person || '') : '');
+  const [contactInfo, setContactInfo] = useState(isEdit ? (initialData?.contact_info || '') : '');
+  const [internalOwner, setInternalOwner] = useState(isEdit ? (initialData?.internal_owner || '') : '');
 
   const [file, setFile] = useState<File | null>(null);
   const [existingFileName, setExistingFileName] = useState(isEdit ? (initialData?.file_name || '') : '');
@@ -213,7 +215,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       }
 
       const ext = file.name.split('.').pop();
-      const filePath = `${register}/${Date.now()}.${ext}`;
+      const filePath = `${register}/${Date.now()}_${number.replace('/', '-')}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file, { upsert: true });
 
       if (uploadError) {
@@ -272,6 +274,9 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       payload.value = contractValue ? parseFloat(contractValue) : null;
       payload.responsible_person = showCustomResponsible ? customResponsible : responsiblePerson;
       payload.status = contractStatus;
+      payload.contact_person = contactPerson;
+      payload.contact_info = contactInfo;
+      payload.internal_owner = internalOwner;
     }
 
     if (!isEdit) {
@@ -502,8 +507,25 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   <Label htmlFor="value">Стойност (лв.) — незадължително</Label>
                   <Input id="value" type="number" min="0" step="0.01" placeholder="0.00" value={contractValue} onChange={(e) => setContractValue(e.target.value)} />
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact_person">Лице за контакт — незадължително</Label>
+                    <Input id="contact_person" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Георги Георгиев - мениджър" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact_info">Телефон / Имейл — незадължително</Label>
+                    <Input id="contact_info" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="0888 123 456 / email@firma.bg" />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="responsible">Отговорно лице</Label>
+                  <Label htmlFor="internal_owner">Вътрешен титуляр *</Label>
+                  <select id="internal_owner" value={internalOwner} onChange={(e) => setInternalOwner(e.target.value)} required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">Изберете титуляр...</option>
+                    {RESPONSIBLE_PERSONS.filter(p => p !== 'Друго лице').map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="responsible">Отговорник — незадължително</Label>
                   <select id="responsible" value={showCustomResponsible ? 'Друго лице' : responsiblePerson} onChange={(e) => handleResponsibleChange(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Изберете...</option>
                     {RESPONSIBLE_PERSONS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -513,7 +535,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="status">Статус</Label>
+                  <Label htmlFor="status">Статус *</Label>
                   <select id="status" value={contractStatus} onChange={(e) => setContractStatus(e.target.value as ContractStatus)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                     {CONTRACT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
