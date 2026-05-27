@@ -53,6 +53,12 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     e.preventDefault();
     setLoading(true);
     setError('');
+    // Валидация за договори
+if (register === 'contracts' && startDate && endDate && endDate < startDate) {
+  setError('Крайната дата не може да е преди началната дата!');
+  setLoading(false);
+  return;
+}
 
     let fileUrl = isEdit ? String(initialData?.file_url || '') : '';
     let fileName = isEdit ? String(initialData?.file_name || '') : '';
