@@ -12,7 +12,6 @@ export default async function NewRecordPage({
   params: Promise<{ register: string }>;
 }) {
   const { register } = await params;
-
   if (!VALID_REGISTERS.includes(register as RegisterType)) {
     notFound();
   }
@@ -26,8 +25,23 @@ export default async function NewRecordPage({
     redirect(`/${register}`);
   }
 
-  // Get next number - взима максималния номер за текущата година
   const currentYear = getCurrentYear();
+
+  // За заповеди номерът се генерира при избор на вид
+  if (register === 'orders') {
+    const { data: orderTypes } = await supabase.from('order_types').select('*').order('code');
+    return (
+      <RecordForm
+        register="orders"
+        nextNumber=""
+        userId={user.id}
+        mode="create"
+        orderTypes={(orderTypes || []) as { id: string; code: string; name: string }[]}
+      />
+    );
+  }
+
+  // За останалите - старата логика
   const { data: lastRecord } = await supabase
     .from(register as RegisterType)
     .select('number')
