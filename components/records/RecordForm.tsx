@@ -358,11 +358,19 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input id="deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="resolution">Резолюция</Label>
-                  <select id="resolution" value={resolution} onChange={(e) => setResolution(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    {RESOLUTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="resolution">Резолюция</Label>
+                    <select id="resolution" value={resolution} onChange={(e) => setResolution(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      {RESOLUTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assignee_incoming">Отговорник — незадължително</Label>
+                    <select id="assignee_incoming" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                    </select>
+                  </div>
                 </div>
               </>
             )}
@@ -378,18 +386,26 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   <Label htmlFor="subject">Относно *</Label>
                   <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="reply_to">В отговор на (Вх. №) — незадължително</Label>
-                  <Input id="reply_to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="напр. 5/2026" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reply_to">В отговор на (Вх. №) — незадължително</Label>
+                    <Input id="reply_to" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="напр. 5/2026" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="send_method">Изпратено по</Label>
+                    <select id="send_method" value={sendMethod} onChange={(e) => setSendMethod(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="">Изберете начин...</option>
+                      <option value="email">Имейл</option>
+                      <option value="courier">Куриер / Български пощи</option>
+                      <option value="ssev">ССЕВ</option>
+                      <option value="hand">На ръка</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="send_method">Изпратено по</Label>
-                  <select id="send_method" value={sendMethod} onChange={(e) => setSendMethod(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">Изберете начин...</option>
-                    <option value="email">Имейл</option>
-                    <option value="courier">Куриер / Български пощи</option>
-                    <option value="ssev">ССЕВ</option>
-                    <option value="hand">На ръка</option>
+                  <Label htmlFor="assignee_outgoing">Отговорник — незадължително</Label>
+                  <select id="assignee_outgoing" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                   </select>
                 </div>
               </>
@@ -430,9 +446,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   <Label htmlFor="title">Заглавие *</Label>
                   <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Заглавие на заповедта" required />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="employee">Служител — незадължително</Label>
-                  <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="employee">Служител — незадължително</Label>
+                    <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assignee_orders">Отговорник — незадължително</Label>
+                    <select id="assignee_orders" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 {isLeave(orderType) && (
@@ -517,12 +541,20 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input id="contact_info" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="0888 123 456 / email@firma.bg" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="internal_owner">Вътрешен титуляр *</Label>
-                  <select id="internal_owner" value={internalOwner} onChange={(e) => setInternalOwner(e.target.value)} required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">Изберете титуляр...</option>
-                    {RESPONSIBLE_PERSONS.filter(p => p !== 'Друго лице').map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="internal_owner">Вътрешен титуляр *</Label>
+                    <select id="internal_owner" value={internalOwner} onChange={(e) => setInternalOwner(e.target.value)} required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="">Изберете титуляр...</option>
+                      {RESPONSIBLE_PERSONS.filter(p => p !== 'Друго лице').map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="status">Статус *</Label>
+                    <select id="status" value={contractStatus} onChange={(e) => setContractStatus(e.target.value as ContractStatus)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      {CONTRACT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="responsible">Отговорник — незадължително</Label>
@@ -534,22 +566,18 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input className="mt-2" placeholder="Въведете ime и длъжност..." value={customResponsible} onChange={(e) => setCustomResponsible(e.target.value)} required />
                   )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="status">Статус *</Label>
-                  <select id="status" value={contractStatus} onChange={(e) => setContractStatus(e.target.value as ContractStatus)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    {CONTRACT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
               </>
             )}
 
-            {/* Отговорник — за всички */}
-            <div className="space-y-1.5">
-              <Label htmlFor="assignee">Отговорник — незадължително</Label>
-              <select id="assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
-            </div>
+            {/* Договори - assignee */}
+            {register === 'contracts' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="assignee_contracts">Отговорник — незадължително</Label>
+                <select id="assignee_contracts" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Описание */}
             <div className="space-y-1.5">
