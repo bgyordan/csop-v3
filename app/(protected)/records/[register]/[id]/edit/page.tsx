@@ -36,7 +36,7 @@ export default async function EditRecordPage({
   return (
     <RecordForm
       register={register as RegisterType}
-      initialData={record as Record<string, unknown>}
+     initialData={record as Record<string, string>}
       userId={user.id}
       mode="edit"
     />
