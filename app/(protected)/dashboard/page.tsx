@@ -60,9 +60,9 @@ export default async function DashboardPage() {
     supabase.from('outgoing').select('*', { count: 'exact', head: true }),
     supabase.from('orders').select('*', { count: 'exact', head: true }),
     supabase.from('contracts').select('*', { count: 'exact', head: true }),
-    supabase.from('incoming').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
-    supabase.from('outgoing').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
-    supabase.from('orders').select('number').ilike('number', `%/${currentYear}`).order('created_at', { ascending: false }).limit(1),
+    supabase.from('incoming').select('number').ilike('number', `%/${currentYear}`),
+    supabase.from('outgoing').select('number').ilike('number', `%/${currentYear}`),
+    supabase.from('orders').select('number').ilike('number', `%/${currentYear}`),
     supabase.from('incoming').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('outgoing').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(1),
@@ -70,10 +70,26 @@ export default async function DashboardPage() {
     supabase.from('contracts').select('*').gte('end_date', todayStr).lte('end_date', in30DaysStr).order('end_date', { ascending: true }),
   ]);
 
+  const getMaxNumber = (records: Array<{ number: string }> | null) => {
+    if (!records || records.length === 0) return null;
+    let maxNum = 0;
+    let maxRecord = '';
+    for (const rec of records) {
+      const parts = String(rec.number).split('/');
+      const numPart = parts[0].trim().split(' ').pop() || parts[0].trim();
+      const num = parseInt(numPart);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+        maxRecord = rec.number;
+      }
+    }
+    return maxRecord || null;
+  };
+
   const lastNumbers = {
-    incoming: (lastIncoming?.[0] as { number: string } | undefined)?.number || null,
-    outgoing: (lastOutgoing?.[0] as { number: string } | undefined)?.number || null,
-    orders: (lastOrders?.[0] as { number: string } | undefined)?.number || null,
+    incoming: getMaxNumber(lastIncoming as Array<{ number: string }> | null),
+    outgoing: getMaxNumber(lastOutgoing as Array<{ number: string }> | null),
+    orders: getMaxNumber(lastOrders as Array<{ number: string }> | null),
     contracts: null,
   };
 
@@ -131,7 +147,7 @@ export default async function DashboardPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-600 mb-1">{REGISTER_LABELS[key]}</p>
                   {lastNum && (
-                    <p className="text-sm text-gray-500 font-mono font-medium">№ {lastNum}</p>
+                    <p className="text-xs text-gray-400 font-mono">последен: {lastNum}</p>
                   )}
                   {!lastNum && count > 0 && (
                     <p className="text-xs text-gray-300 font-mono">няма за {currentYear}</p>
