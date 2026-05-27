@@ -55,9 +55,12 @@ export default function LoginPage() {
     setGoogleLoading(true);
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
+  provider: 'google',
+  options: { 
+    redirectTo: `${window.location.origin}/auth/callback`,
+    queryParams: { prompt: 'select_account' }
+  },
+});
     if (error) {
       setError(error.message);
       setGoogleLoading(false);
