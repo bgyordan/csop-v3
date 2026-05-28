@@ -26,31 +26,24 @@ export default async function NewRecordPage({
 
   const currentYear = getCurrentYear();
 
+  // Зареди номенклатурите за съответния регистър
+  const { data: nomenclatures } = await supabase
+    .from('nomenclatures')
+    .select('*')
+    .eq('register', register)
+    .order('code');
+
   if (register === 'orders') {
-    const { data: orderTypes } = await supabase.from('order_types').select('*').order('code');
-    const { data: nomenclatures } = await supabase
-      .from('nomenclatures')
-      .select('*')
-      .eq('register', 'orders')
-      .order('code');
     return (
       <RecordForm
         register="orders"
         nextNumber=""
         userId={user.id}
         mode="create"
-        orderTypes={(orderTypes || []) as { id: string; code: string; name: string }[]}
         nomenclatures={(nomenclatures || []) as { id: string; code: string; description: string }[]}
       />
     );
   }
-
-  // Входящи и изходящи — зареди номенклатурите
-  const { data: nomenclatures } = await supabase
-    .from('nomenclatures')
-    .select('*')
-    .eq('register', register)
-    .order('code');
 
   // Намери следващия номер
   const { data: allRecords } = await supabase
