@@ -138,7 +138,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       current_year: currentYear,
     });
     if (data) {
-      const docDate = new Date().toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.');
+      const now = new Date(); 
+      const docDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
       setPreviewNumber(`${data}-${code}-${docDate}`);
     }
     setLoadingPreview(false);
@@ -529,7 +530,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label htmlFor="employee">Служител — незадължително</Label>
-                    <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Ime и длъжност" />
+                    <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="assignee_orders">Отговорник — незадължително</Label>
@@ -653,7 +654,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     {RESPONSIBLE_PERSONS.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   {showCustomResponsible && (
-                    <Input className="mt-2" placeholder="Въведете ime и длъжност..." value={customResponsible} onChange={(e) => setCustomResponsible(e.target.value)} required />
+                    <Input className="mt-2" placeholder="Въведете Име и длъжност..." value={customResponsible} onChange={(e) => setCustomResponsible(e.target.value)} required />
                   )}
                 </div>
                 <div className="space-y-1.5">
