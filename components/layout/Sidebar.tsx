@@ -14,13 +14,12 @@ import {
   ScrollText,
   ShieldCheck,
   LogOut,
-  BookOpen,
   Menu,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 
 interface SidebarProps {
   profile: Profile;
@@ -55,11 +54,15 @@ export default function Sidebar({ profile }: SidebarProps) {
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-100">
+      <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
+          <Image
+            src="/CsopLOGO.jpg"
+            alt="ЦСОП Варна"
+            width={40}
+            height={40}
+            className="rounded-lg flex-shrink-0"
+          />
           <div>
             <p className="font-bold text-gray-900 text-sm leading-tight">ЦСОП Варна</p>
             <p className="text-xs text-gray-400">Деловодна система</p>
