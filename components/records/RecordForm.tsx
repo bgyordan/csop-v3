@@ -62,10 +62,10 @@ const RESOLUTIONS = [
 const isLeave = (type: string) => type.startsWith('leave');
 const isMission = (type: string) => type === 'mission' || type === 'duty';
 
-function calcEndDate(start: string, years: string): string {
-  if (!start || !years) return '';
+function calcEndDate(start: string, months: string): string {
+  if (!start || !months) return '';
   const d = new Date(start);
-  d.setFullYear(d.getFullYear() + parseInt(years));
+  d.setMonth(d.getMonth() + parseInt(months));
   return d.toISOString().slice(0, 10);
 }
 
@@ -594,13 +594,13 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="duration">Срок (години) *</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="1"
-                      max="99"
-                      placeholder="напр. 1"
+                   <Label htmlFor="duration">Срок (месеци) *</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="1"
+                    max="999"
+                    placeholder="напр. 12"
                       value={durationYears}
                       onChange={(e) => setDurationYears(e.target.value)}
                       required
