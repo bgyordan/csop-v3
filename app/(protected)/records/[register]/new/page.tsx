@@ -19,7 +19,6 @@ export default async function NewRecordPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (!profile || !['admin', 'secretary'].includes(profile.role)) {
     redirect(`/${register}`);
@@ -29,6 +28,11 @@ export default async function NewRecordPage({
 
   if (register === 'orders') {
     const { data: orderTypes } = await supabase.from('order_types').select('*').order('code');
+    const { data: nomenclatures } = await supabase
+      .from('nomenclatures')
+      .select('*')
+      .eq('register', 'orders')
+      .order('code');
     return (
       <RecordForm
         register="orders"
@@ -36,11 +40,19 @@ export default async function NewRecordPage({
         userId={user.id}
         mode="create"
         orderTypes={(orderTypes || []) as { id: string; code: string; name: string }[]}
+        nomenclatures={(nomenclatures || []) as { id: string; code: string; description: string }[]}
       />
     );
   }
 
-  // Взимаме всички номера за годината и намираме максималния
+  // Входящи и изходящи — зареди номенклатурите
+  const { data: nomenclatures } = await supabase
+    .from('nomenclatures')
+    .select('*')
+    .eq('register', register)
+    .order('code');
+
+  // Намери следващия номер
   const { data: allRecords } = await supabase
     .from(register as RegisterType)
     .select('number')
@@ -63,6 +75,7 @@ export default async function NewRecordPage({
       nextNumber={nextNumber}
       userId={user.id}
       mode="create"
+      nomenclatures={(nomenclatures || []) as { id: string; code: string; description: string }[]}
     />
   );
 }
