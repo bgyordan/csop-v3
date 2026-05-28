@@ -75,9 +75,8 @@ export default async function DashboardPage() {
     let maxNum = 0;
     let maxRecord = '';
     for (const rec of records) {
-      const parts = String(rec.number).split('/');
-      const numPart = parts[0].trim().split(' ').pop() || parts[0].trim();
-      const num = parseInt(numPart);
+      const match = String(rec.number).match(/^(\d+)/);
+      const num = match ? parseInt(match[1]) : 0;
       if (!isNaN(num) && num > maxNum) {
         maxNum = num;
         maxRecord = rec.number;
