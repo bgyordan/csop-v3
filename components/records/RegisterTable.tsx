@@ -185,32 +185,29 @@ export default function RegisterTable({
         return;
       }
 
+      const XLSX = await import('xlsx');
+
       const headers = columns.map(c => c.label);
       const rows = allData.map(row =>
         columns.map(col => cellToText(col.key, row[col.key]))
       );
 
-      const csvLines = ['sep=;', headers.join(';'), ...rows.map(row =>
-        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
-      )].join('\r\n');
+      const wsData = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      // UTF-16 LE encoding за Excel
-      const buf = new ArrayBuffer(2 + csvLines.length * 2);
-      const view = new DataView(buf);
-      // BOM за UTF-16 LE
-      view.setUint8(0, 0xFF);
-      view.setUint8(1, 0xFE);
-      for (let i = 0; i < csvLines.length; i++) {
-        view.setUint16(2 + i * 2, csvLines.charCodeAt(i), true);
-      }
+      // Ширини на колоните
+      ws['!cols'] = columns.map(col => {
+        if (col.key === 'number') return { wch: 15 };
+        if (col.key === 'date' || col.key === 'start_date' || col.key === 'end_date') return { wch: 12 };
+        if (col.key === 'file_name') return { wch: 8 };
+        return { wch: 40 };
+      });
 
-      const blob = new Blob([buf], { type: 'text/csv;charset=utf-16le;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${registerTitles[register]}_${new Date().getFullYear()}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const wb = XLSX.utils.book_new();
+      const sheetName = registerTitles[register].substring(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      XLSX.writeFile(wb, `${registerTitles[register]}_${new Date().getFullYear()}.xlsx`);
     } finally {
       setExporting(false);
     }
