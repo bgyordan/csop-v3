@@ -55,7 +55,7 @@ export default function Sidebar({ profile }: SidebarProps) {
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       {/* Logo */}
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <Image
             src="/CsopLOGO.jpg"
             alt="ЦСОП Варна"
@@ -67,7 +67,7 @@ export default function Sidebar({ profile }: SidebarProps) {
             <p className="font-bold text-gray-900 text-sm leading-tight">ЦСОП Варна</p>
             <p className="text-xs text-gray-400">Деловодна система</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
