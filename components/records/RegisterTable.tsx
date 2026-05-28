@@ -175,7 +175,7 @@ export default function RegisterTable({
       const { data: allData } = await supabase
         .from(register)
         .select('*')
-        .order('date', { ascending: false });
+        .order('date', { ascending: true });
 
       if (!allData || allData.length === 0) return;
 
@@ -204,7 +204,7 @@ export default function RegisterTable({
       const { data: allData } = await supabase
         .from(register)
         .select('*')
-        .order('date', { ascending: false });
+        .order('date', { ascending: true });
 
       if (!allData || allData.length === 0) return;
 
