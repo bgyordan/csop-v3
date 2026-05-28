@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 
 interface RegisterTableProps {
   register: RegisterType;
@@ -94,15 +94,12 @@ const fileBadgeColors: Record<RegisterType, string> = {
 
 function renderCell(register: RegisterType, key: string, value: unknown): React.ReactNode {
   if (value === null || value === undefined || value === '') return <span className="text-gray-300">—</span>;
-
   if (key === 'number') {
     return <span className={`font-mono font-medium ${numberColors[register]}`}>{String(value)}</span>;
   }
-
   if (key === 'date' || key === 'start_date' || key === 'end_date') {
     return formatBgDate(value as string);
   }
-
   if (key === 'file_name') {
     if (value) {
       return (
@@ -113,7 +110,6 @@ function renderCell(register: RegisterType, key: string, value: unknown): React.
     }
     return <span className="text-gray-300">—</span>;
   }
-
   return String(value);
 }
 
@@ -142,6 +138,7 @@ export default function RegisterTable({
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState(searchValue);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const canEdit = userRole === 'admin' || userRole === 'secretary';
   const canDelete = userRole === 'admin';
@@ -180,36 +177,110 @@ export default function RegisterTable({
         .select('*')
         .order('date', { ascending: false });
 
-      if (!allData || allData.length === 0) {
-        setExporting(false);
-        return;
-      }
+      if (!allData || allData.length === 0) return;
 
       const XLSX = await import('xlsx');
-
       const headers = columns.map(c => c.label);
-      const rows = allData.map(row =>
-        columns.map(col => cellToText(col.key, row[col.key]))
-      );
-
+      const rows = allData.map(row => columns.map(col => cellToText(col.key, row[col.key])));
       const wsData = [headers, ...rows];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      // Ширини на колоните
       ws['!cols'] = columns.map(col => {
         if (col.key === 'number') return { wch: 15 };
         if (col.key === 'date' || col.key === 'start_date' || col.key === 'end_date') return { wch: 12 };
         if (col.key === 'file_name') return { wch: 8 };
         return { wch: 40 };
       });
-
       const wb = XLSX.utils.book_new();
-      const sheetName = registerTitles[register].substring(0, 31);
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
+      XLSX.utils.book_append_sheet(wb, ws, registerTitles[register].substring(0, 31));
       XLSX.writeFile(wb, `${registerTitles[register]}_${new Date().getFullYear()}.xlsx`);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      const { data: allData } = await supabase
+        .from(register)
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (!allData || allData.length === 0) return;
+
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Зареди кирилски шрифт
+      doc.addFont('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5Q.ttf', 'Roboto', 'normal');
+      doc.setFont('Roboto');
+
+      const today = new Date().toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const year = new Date().getFullYear();
+
+      // Хедър
+      doc.setFontSize(14);
+      doc.setFont('Roboto', 'normal');
+      doc.text('ЦСОП Варна — Деловодна система', 148, 15, { align: 'center' });
+      doc.setFontSize(11);
+      doc.text(`${registerTitles[register]} — ${year} г.`, 148, 22, { align: 'center' });
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Генерирано на: ${today}`, 148, 28, { align: 'center' });
+      doc.setTextColor(0);
+
+      // Таблица
+      const headers = columns.map(c => c.label);
+      const rows = allData.map(row => columns.map(col => cellToText(col.key, row[col.key])));
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 32,
+        styles: {
+          font: 'Roboto',
+          fontSize: 9,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          lineColor: [220, 220, 220],
+          lineWidth: 0.3,
+        },
+        headStyles: {
+          fillColor: [29, 78, 216],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        columnStyles: columns.reduce((acc, col, i) => {
+          if (col.key === 'number') acc[i] = { cellWidth: 22 };
+          else if (col.key === 'date' || col.key === 'start_date' || col.key === 'end_date') acc[i] = { cellWidth: 22 };
+          else if (col.key === 'file_name') acc[i] = { cellWidth: 12 };
+          else acc[i] = { cellWidth: 'auto' };
+          return acc;
+        }, {} as Record<number, { cellWidth: number | 'auto' }>),
+        didDrawPage: (data) => {
+          // Футър
+          const pageCount = doc.getNumberOfPages();
+          doc.setFontSize(7);
+          doc.setTextColor(150);
+          doc.text(
+            `Страница ${data.pageNumber} от ${pageCount} — ЦСОП Варна Деловодна система`,
+            148,
+            doc.internal.pageSize.height - 5,
+            { align: 'center' }
+          );
+          doc.setTextColor(0);
+        },
+      });
+
+      doc.save(`${registerTitles[register]}_${year}.pdf`);
+    } finally {
+      setExportingPdf(false);
     }
   }
 
@@ -229,7 +300,16 @@ export default function RegisterTable({
             disabled={exporting}
           >
             <Download size={15} />
-            {exporting ? 'Експортиране...' : 'Експорт Excel'}
+            {exporting ? 'Експортиране...' : 'Excel'}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
+          >
+            <FileText size={15} />
+            {exportingPdf ? 'Генериране...' : 'PDF'}
           </Button>
           {canEdit && (
             <Link href={`/records/${register}/new`}>
