@@ -50,6 +50,7 @@ export default async function DashboardPage() {
     { data: lastIncoming },
     { data: lastOutgoing },
     { data: lastOrders },
+    { data: lastContracts },
     { data: recentIncoming },
     { data: recentOutgoing },
     { data: recentOrders },
@@ -63,6 +64,7 @@ export default async function DashboardPage() {
     supabase.from('incoming').select('number').ilike('number', `%/${currentYear}`),
     supabase.from('outgoing').select('number').ilike('number', `%/${currentYear}`),
     supabase.from('orders').select('number').ilike('number', `%/${currentYear}`),
+    supabase.from('contracts').select('number').ilike('number', `%/${currentYear}`),
     supabase.from('incoming').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('outgoing').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(1),
@@ -89,7 +91,7 @@ export default async function DashboardPage() {
     incoming: getMaxNumber(lastIncoming as Array<{ number: string }> | null),
     outgoing: getMaxNumber(lastOutgoing as Array<{ number: string }> | null),
     orders: getMaxNumber(lastOrders as Array<{ number: string }> | null),
-    contracts: null,
+    contracts: getMaxNumber(lastContracts as Array<{ number: string }> | null),
   };
 
   type RecentItem = { id: string; number: string; date: string; created_at: string; register: 'incoming' | 'outgoing' | 'orders' | 'contracts'; label: string };
@@ -178,7 +180,7 @@ export default async function DashboardPage() {
               <Link href="/records/outgoing/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-green-700 border-green-200 hover:bg-green-50">
                   <Send size={15} />
-                  Нов входящ
+                  Нов изходящ
                 </Button>
               </Link>
               <Link href="/records/orders/new" className="block">
