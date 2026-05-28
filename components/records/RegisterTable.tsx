@@ -43,6 +43,7 @@ interface RegisterTableProps {
 const registerColumnConfigs: Record<RegisterType, { key: string; label: string }[]> = {
   incoming: [
     { key: 'number', label: '№' },
+    { key: 'nomenclature_code', label: 'Номенкл.' },
     { key: 'date', label: 'Дата' },
     { key: 'from_whom', label: 'От кого' },
     { key: 'subject', label: 'Относно' },
@@ -50,6 +51,7 @@ const registerColumnConfigs: Record<RegisterType, { key: string; label: string }
   ],
   outgoing: [
     { key: 'number', label: '№' },
+    { key: 'nomenclature_code', label: 'Номенкл.' },
     { key: 'date', label: 'Дата' },
     { key: 'to_whom', label: 'До кого' },
     { key: 'subject', label: 'Относно' },
