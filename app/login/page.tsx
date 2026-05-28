@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { BookOpen, Lock, Mail, CircleAlert as AlertCircle } from 'lucide-react';
+import { Lock, Mail, CircleAlert as AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -55,12 +56,12 @@ export default function LoginPage() {
     setGoogleLoading(true);
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({
-  provider: 'google',
-  options: { 
-    redirectTo: `${window.location.origin}/auth/callback`,
-    queryParams: { prompt: 'select_account' }
-  },
-});
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: 'select_account' }
+      },
+    });
     if (error) {
       setError(error.message);
       setGoogleLoading(false);
@@ -72,8 +73,14 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <BookOpen className="w-8 h-8 text-blue-700" />
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-2xl shadow-lg mb-4 p-2">
+            <Image
+              src="/CsopLOGO.jpg"
+              alt="ЦСОП Варна"
+              width={80}
+              height={80}
+              className="rounded-xl"
+            />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">ЦСОП Варна</h1>
           <p className="text-blue-200 mt-1 text-sm">Деловодна система</p>
