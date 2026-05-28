@@ -20,7 +20,6 @@ import {
   Moon,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 
@@ -47,12 +46,31 @@ export default function Sidebar({ profile }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      setIsDark(true);
+    }
   }, []);
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.remove('dark');
+      html.classList.add('light');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      html.classList.remove('light');
+      html.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -93,9 +111,9 @@ export default function Sidebar({ profile }: SidebarProps) {
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               )}
             >
-              <Icon 
-                className={cn('flex-shrink-0', isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400')} 
-                size={18} 
+              <Icon
+                className={cn('flex-shrink-0', isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400')}
+                size={18}
               />
               {label}
             </Link>
@@ -142,11 +160,11 @@ export default function Sidebar({ profile }: SidebarProps) {
             </span>
           </div>
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={toggleTheme}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
-            title={theme === 'dark' ? 'Светла тема' : 'Тъмна тема'}
+            title={isDark ? 'Светла тема' : 'Тъмна тема'}
           >
-            {mounted && (theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />)}
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
         <Button
@@ -164,7 +182,6 @@ export default function Sidebar({ profile }: SidebarProps) {
 
   return (
     <div className="contents">
-      {/* Mobile toggle */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
@@ -172,7 +189,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/40"
@@ -180,7 +196,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         />
       )}
 
-      {/* Mobile sidebar */}
       <aside
         className={cn(
           'lg:hidden fixed top-0 left-0 z-50 w-64 h-full transition-transform duration-300',
@@ -190,7 +205,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         {sidebarContent}
       </aside>
 
-      {/* Desktop sidebar */}
       <aside className="hidden lg:block w-64 flex-shrink-0 h-full">
         {sidebarContent}
       </aside>
