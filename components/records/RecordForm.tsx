@@ -262,7 +262,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
 
     if (register === 'contracts') {
-      payload.number = number || `${maxNum + 1}/${currentYear}`;
+      payload.number = number;
       payload.counterparty = counterparty;
       payload.subject = subject;
       payload.contract_type = contractType;
