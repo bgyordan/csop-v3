@@ -1,62 +1,3 @@
-Кодът за компонента `Sidebar` е написан много чисто и структуриран правилно. Ползването на променливата `sidebarContent`, за да се избегне дублирането на JSX кода за десктоп и мобилната версия, е отлична практика.
-
-Има обаче **три детайла**, които си струва да се коригират или оптимизират, за да нямаш проблеми с визуализацията, стиловете (особено при Тъмна тема) и TypeScript.
-
----
-
-### 1. Проблем със стиловете на ролите (Role Badges) при Тъмна тема
-
-В момента в `roleColors` дефинираш статични Tailwind класове, които изглеждат добре на светъл фон, но при активирана тъмна тема (`dark`) текстът ще стане трудно четим или ще изглежда не на място:
-
-```typescript
-const roleColors: Record<string, string> = {
-  admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  secretary: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  viewer: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-};
-
-```
-
-### 2. Използване на `w-4.5` и `h-4.5`
-
-Вътре в мапинга на навигацията имаш следния клас:
-
-```typescript
-className={cn('w-4.5 h-4.5 flex-shrink-0', ...)}
-
-```
-
-По подразбиране в Tailwind CSS **няма** класове `w-4.5` или `h-4.5` (има `w-4`, което е 1rem/16px, и `w-5`, което е 1.25rem/20px). Тъй като веднага след това подаваш и проп `size={18}` към Lucide иконата (който генерира inline стилове `width: 18px; height: 18px;`), тези несъществуващи класове просто ще бъдат игнорирани. Най-добре е да ги премахнеш, за да не цапат HTML-а:
-
-```typescript
-<Icon className="flex-shrink-0" size={18} />
-
-```
-
-### 3. Оптимизация на `useTheme` за избягване на Hydration Mismatch
-
-Бутонът за превключване на темата чете `theme` директно. При първоначално зареждане (SSR) на сървъра стойността на `theme` е `undefined`, докато на клиента `next-themes` я определя. Това може да причини разминаване на иконата (Sun/Moon). Обикновено се добавя един бърз `mounted` стейт:
-
-```typescript
-import { useState, useEffect } from 'react';
-// ... вътре в компонента:
-const [mounted, setMounted] = useState(false);
-const { theme, setTheme } = useTheme();
-
-useEffect(() => {
-  setMounted(true);
-}, []);
-
-// На мястото на иконата:
-{mounted && (theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />)}
-
-```
-
----
-
-### Ето коригирания и оптимизиран код:
-
-```tsx
 'use client';
 
 import Link from 'next/link';
@@ -109,7 +50,6 @@ export default function Sidebar({ profile }: SidebarProps) {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  // Избягване на hydration грешки за иконата на темата
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -122,7 +62,6 @@ export default function Sidebar({ profile }: SidebarProps) {
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-      {/* Logo */}
       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <Image
@@ -139,7 +78,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
@@ -188,7 +126,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         )}
       </nav>
 
-      {/* User info + Logout */}
       <div className="px-4 py-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 bg-blue-700 rounded-full flex items-center justify-center flex-shrink-0">
@@ -204,7 +141,6 @@ export default function Sidebar({ profile }: SidebarProps) {
               {ROLE_LABELS[profile.role]}
             </span>
           </div>
-          {/* Dark mode toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
@@ -228,7 +164,6 @@ export default function Sidebar({ profile }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile toggle */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
@@ -236,7 +171,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/40"
@@ -244,7 +178,6 @@ export default function Sidebar({ profile }: SidebarProps) {
         />
       )}
 
-      {/* Mobile sidebar */}
       <aside
         className={cn(
           'lg:hidden fixed top-0 left-0 z-50 w-64 h-full transition-transform duration-300',
@@ -254,12 +187,4 @@ export default function Sidebar({ profile }: SidebarProps) {
         {sidebarContent}
       </aside>
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-64 flex-shrink-0 h-full">
-        {sidebarContent}
-      </aside>
-    </>
-  );
-}
-
-```
+      <aside className="hidden
