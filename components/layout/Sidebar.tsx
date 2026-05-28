@@ -1,3 +1,62 @@
+Кодът за компонента `Sidebar` е написан много чисто и структуриран правилно. Ползването на променливата `sidebarContent`, за да се избегне дублирането на JSX кода за десктоп и мобилната версия, е отлична практика.
+
+Има обаче **три детайла**, които си струва да се коригират или оптимизират, за да нямаш проблеми с визуализацията, стиловете (особено при Тъмна тема) и TypeScript.
+
+---
+
+### 1. Проблем със стиловете на ролите (Role Badges) при Тъмна тема
+
+В момента в `roleColors` дефинираш статични Tailwind класове, които изглеждат добре на светъл фон, но при активирана тъмна тема (`dark`) текстът ще стане трудно четим или ще изглежда не на място:
+
+```typescript
+const roleColors: Record<string, string> = {
+  admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  secretary: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  viewer: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+};
+
+```
+
+### 2. Използване на `w-4.5` и `h-4.5`
+
+Вътре в мапинга на навигацията имаш следния клас:
+
+```typescript
+className={cn('w-4.5 h-4.5 flex-shrink-0', ...)}
+
+```
+
+По подразбиране в Tailwind CSS **няма** класове `w-4.5` или `h-4.5` (има `w-4`, което е 1rem/16px, и `w-5`, което е 1.25rem/20px). Тъй като веднага след това подаваш и проп `size={18}` към Lucide иконата (който генерира inline стилове `width: 18px; height: 18px;`), тези несъществуващи класове просто ще бъдат игнорирани. Най-добре е да ги премахнеш, за да не цапат HTML-а:
+
+```typescript
+<Icon className="flex-shrink-0" size={18} />
+
+```
+
+### 3. Оптимизация на `useTheme` за избягване на Hydration Mismatch
+
+Бутонът за превключване на темата чете `theme` директно. При първоначално зареждане (SSR) на сървъра стойността на `theme` е `undefined`, докато на клиента `next-themes` я определя. Това може да причини разминаване на иконата (Sun/Moon). Обикновено се добавя един бърз `mounted` стейт:
+
+```typescript
+import { useState, useEffect } from 'react';
+// ... вътре в компонента:
+const [mounted, setMounted] = useState(false);
+const { theme, setTheme } = useTheme();
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+// На мястото на иконата:
+{mounted && (theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />)}
+
+```
+
+---
+
+### Ето коригирания и оптимизиран код:
+
+```tsx
 'use client';
 
 import Link from 'next/link';
@@ -19,7 +78,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -37,9 +96,9 @@ const navItems = [
 ];
 
 const roleColors: Record<string, string> = {
-  admin: 'bg-blue-100 text-blue-700',
-  secretary: 'bg-green-100 text-green-700',
-  viewer: 'bg-gray-100 text-gray-600',
+  admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  secretary: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  viewer: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 };
 
 export default function Sidebar({ profile }: SidebarProps) {
@@ -47,7 +106,13 @@ export default function Sidebar({ profile }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  // Избягване на hydration грешки за иконата на темата
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -90,7 +155,10 @@ export default function Sidebar({ profile }: SidebarProps) {
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               )}
             >
-              <Icon className={cn('w-4.5 h-4.5 flex-shrink-0', isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400')} size={18} />
+              <Icon 
+                className={cn('flex-shrink-0', isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400')} 
+                size={18} 
+              />
               {label}
             </Link>
           );
@@ -142,13 +210,13 @@ export default function Sidebar({ profile }: SidebarProps) {
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
             title={theme === 'dark' ? 'Светла тема' : 'Тъмна тема'}
           >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {mounted && (theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />)}
           </button>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-gray-500 hover:text-red-600 hover:bg-red-50 gap-2"
+          className="w-full justify-start text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 gap-2"
           onClick={handleLogout}
         >
           <LogOut size={16} />
@@ -193,3 +261,5 @@ export default function Sidebar({ profile }: SidebarProps) {
     </>
   );
 }
+
+```
