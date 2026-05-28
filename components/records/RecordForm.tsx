@@ -403,7 +403,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="deadline">Срок за отговор — незадължително</Label>
-                    <Input id="deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                    <Input id="deadline" type="date" value={deadline} min={today} onChange={(e) => setDeadline(e.target.value)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
