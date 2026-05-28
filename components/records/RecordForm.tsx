@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { RegisterType, Role } from '@/lib/supabase/types';
 import { REGISTER_LABELS } from '@/lib/supabase/types';
-import { getCurrentYear } from '@/lib/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -83,10 +82,12 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const supabase = createClient();
   const isEdit = mode === 'edit';
   const today = new Date().toISOString().slice(0, 10);
+  const currentYear = new Date().getFullYear();
 
   const [nomenclatureCode, setNomenclatureCode] = useState(isEdit ? (initialData?.nomenclature_code || '') : '');
   const [number, setNumber] = useState<string>(isEdit ? (initialData?.number || '') : '');
-  const [generatingNumber, setGeneratingNumber] = useState(false);
+  const [previewNumber, setPreviewNumber] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [date] = useState<string>(isEdit ? (initialData?.date || today) : today);
 
   const [fromWhom, setFromWhom] = useState(isEdit ? (initialData?.from_whom || '') : '');
@@ -127,22 +128,40 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const currentYear = new Date().getFullYear();
-
-  async function generateNumber(code: string) {
+  // Показва preview на номера без да пипа брояча
+  async function updatePreview(code: string) {
     if (!code || isEdit) return;
-    setGeneratingNumber(true);
-    let rpcName = '';
-    if (register === 'incoming') rpcName = 'get_next_incoming_number';
-    else if (register === 'outgoing') rpcName = 'get_next_outgoing_number';
-    else if (register === 'orders') rpcName = 'get_next_order_number';
-
-    const { data, error } = await supabase.rpc(rpcName, {
-      [register === 'orders' ? 'order_code' : 'nom_code']: code,
+    setLoadingPreview(true);
+    const registerKey = register === 'orders' ? 'orders' : register;
+    const { data } = await supabase.rpc('peek_next_number', {
+      p_register: registerKey,
       current_year: currentYear,
     });
-    if (!error && data) setNumber(data);
-    setGeneratingNumber(false);
+    if (data) {
+      const docDate = new Date().toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.');
+      setPreviewNumber(`${data}-${code}-${docDate}`);
+    }
+    setLoadingPreview(false);
+  }
+
+  // Генерира реалния номер само при Submit
+  async function generateRealNumber(code: string): Promise<string> {
+    let rpcName = '';
+    let params: Record<string, unknown> = { current_year: currentYear };
+
+    if (register === 'incoming') {
+      rpcName = 'get_next_incoming_number';
+      params.nom_code = code;
+    } else if (register === 'outgoing') {
+      rpcName = 'get_next_outgoing_number';
+      params.nom_code = code;
+    } else if (register === 'orders') {
+      rpcName = 'get_next_order_number';
+      params.order_code = code;
+    }
+
+    const { data } = await supabase.rpc(rpcName, params);
+    return data || '';
   }
 
   const calcDays = (from: string, to: string) => {
@@ -172,8 +191,10 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     setLoading(true);
     setError('');
 
-    if (!isEdit && !number && register !== 'contracts') {
-      setError('Моля изберете номенклатурен код за да се генерира номер.');
+    const selectedCode = register === 'orders' ? orderTypeCode : nomenclatureCode;
+
+    if (!isEdit && register !== 'contracts' && !selectedCode) {
+      setError('Моля изберете номенклатурен код.');
       setLoading(false);
       return;
     }
@@ -188,6 +209,18 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       setError('Крайната дата не може да е преди началната дата!');
       setLoading(false);
       return;
+    }
+
+    // Генерираме реалния номер само при нов запис
+    let finalNumber = isEdit ? (initialData?.number || '') : number;
+    if (!isEdit && register !== 'contracts' && selectedCode) {
+      finalNumber = await generateRealNumber(selectedCode);
+      if (!finalNumber) {
+        setError('Грешка при генериране на номер. Опитайте отново.');
+        setLoading(false);
+        return;
+      }
+      setNumber(finalNumber);
     }
 
     let fileUrl = isEdit ? (initialData?.file_url || '') : '';
@@ -220,8 +253,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       fileUrl = urlData.publicUrl;
       fileName = file.name;
     }
-
-    const finalNumber = number || `${new Date().getTime()}`;
 
     const payload: Record<string, unknown> = {
       number: finalNumber,
@@ -262,7 +293,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
 
     if (register === 'contracts') {
-      payload.number = number;
       payload.counterparty = counterparty;
       payload.subject = subject;
       payload.contract_type = contractType;
@@ -299,6 +329,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     router.refresh();
   }
 
+  const numberDisplay = isEdit ? number : (previewNumber || 'Ще се генерира при запис');
+
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
       <div className="mb-6">
@@ -327,13 +359,12 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nomenclature_code">Номенклатура *</Label>
+                    <Label>Номенклатура *</Label>
                     <select
-                      id="nomenclature_code"
                       value={nomenclatureCode}
                       onChange={async (e) => {
                         setNomenclatureCode(e.target.value);
-                        await generateNumber(e.target.value);
+                        await updatePreview(e.target.value);
                       }}
                       required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
@@ -345,12 +376,15 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Регистрационен номер</Label>
+                    <Label>Очакван номер</Label>
                     <Input
-                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на код')}
+                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
                       readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
                     />
+                    {!isEdit && previewNumber && (
+                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -393,13 +427,12 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nomenclature_code_out">Номенклатура *</Label>
+                    <Label>Номенклатура *</Label>
                     <select
-                      id="nomenclature_code_out"
                       value={nomenclatureCode}
                       onChange={async (e) => {
                         setNomenclatureCode(e.target.value);
-                        await generateNumber(e.target.value);
+                        await updatePreview(e.target.value);
                       }}
                       required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
@@ -411,12 +444,15 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Регистрационен номер</Label>
+                    <Label>Очакван номер</Label>
                     <Input
-                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на код')}
+                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
                       readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
                     />
+                    {!isEdit && previewNumber && (
+                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -463,7 +499,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                       value={orderTypeCode}
                       onChange={async (e) => {
                         setOrderTypeCode(e.target.value);
-                        await generateNumber(e.target.value);
+                        await updatePreview(e.target.value);
                       }}
                       required
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
@@ -475,12 +511,15 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Регистрационен номер</Label>
+                    <Label>Очакван номер</Label>
                     <Input
-                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на вид')}
+                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
                       readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
                     />
+                    {!isEdit && previewNumber && (
+                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
