@@ -194,8 +194,8 @@ export default function RegisterTable({
 
       // Построй CSV съдържание с BOM за кирилица
       const BOM = '\uFEFF';
-      const csvContent = BOM + [headers, ...rows]
-        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      const csvContent = BOM + 'sep=;\n' + [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
         .join('\n');
 
       // Свали файла
