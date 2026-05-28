@@ -62,6 +62,13 @@ const RESOLUTIONS = [
 const isLeave = (type: string) => type.startsWith('leave');
 const isMission = (type: string) => type === 'mission' || type === 'duty';
 
+function calcEndDate(start: string, years: string): string {
+  if (!start || !years) return '';
+  const d = new Date(start);
+  d.setFullYear(d.getFullYear() + parseInt(years));
+  return d.toISOString().slice(0, 10);
+}
+
 interface NomenclatureItem {
   id: string;
   code: string;
@@ -113,7 +120,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [counterparty, setCounterparty] = useState(isEdit ? (initialData?.counterparty || '') : '');
   const [contractType, setContractType] = useState<ContractType | ''>(isEdit ? (initialData?.contract_type || '') as ContractType : '');
   const [startDate, setStartDate] = useState(isEdit ? (initialData?.start_date || '') : today);
-  const [endDate, setEndDate] = useState(isEdit ? (initialData?.end_date || '') : '');
+  const [durationYears, setDurationYears] = useState(() => {
+    if (isEdit && initialData?.start_date && initialData?.end_date) {
+      const start = new Date(initialData.start_date);
+      const end = new Date(initialData.end_date);
+      const years = end.getFullYear() - start.getFullYear();
+      return years > 0 ? String(years) : '';
+    }
+    return '';
+  });
+  const endDate = calcEndDate(startDate, durationYears);
+
   const [contractValue, setContractValue] = useState(isEdit ? (initialData?.value || '') : '');
   const [responsiblePerson, setResponsiblePerson] = useState(isEdit ? (initialData?.responsible_person || '') : '');
   const [customResponsible, setCustomResponsible] = useState('');
@@ -128,39 +145,27 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Показва preview на номера без да пипа брояча
   async function updatePreview(code: string) {
     if (!code || isEdit) return;
     setLoadingPreview(true);
-    const registerKey = register === 'orders' ? 'orders' : register;
     const { data } = await supabase.rpc('peek_next_number', {
-      p_register: registerKey,
+      p_register: register === 'orders' ? 'orders' : register,
       current_year: currentYear,
     });
     if (data) {
-      const now = new Date(); 
+      const now = new Date();
       const docDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
       setPreviewNumber(`${data}-${code}-${docDate}`);
     }
     setLoadingPreview(false);
   }
 
-  // Генерира реалния номер само при Submit
   async function generateRealNumber(code: string): Promise<string> {
     let rpcName = '';
     let params: Record<string, unknown> = { current_year: currentYear };
-
-    if (register === 'incoming') {
-      rpcName = 'get_next_incoming_number';
-      params.nom_code = code;
-    } else if (register === 'outgoing') {
-      rpcName = 'get_next_outgoing_number';
-      params.nom_code = code;
-    } else if (register === 'orders') {
-      rpcName = 'get_next_order_number';
-      params.order_code = code;
-    }
-
+    if (register === 'incoming') { rpcName = 'get_next_incoming_number'; params.nom_code = code; }
+    else if (register === 'outgoing') { rpcName = 'get_next_outgoing_number'; params.nom_code = code; }
+    else if (register === 'orders') { rpcName = 'get_next_order_number'; params.order_code = code; }
     const { data } = await supabase.rpc(rpcName, params);
     return data || '';
   }
@@ -172,7 +177,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
   };
 
-  const daysUntilExpiry = (endDate && startDate && endDate >= startDate) ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  const daysUntilExpiry = endDate ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const expiryColor = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? 'text-red-600' : daysUntilExpiry < 30 ? 'text-amber-600' : 'text-teal-600';
   const expiryText = daysUntilExpiry === null ? '' : daysUntilExpiry < 0 ? `Изтекъл преди ${Math.abs(daysUntilExpiry)} дни!` : daysUntilExpiry === 0 ? 'Изтича днес!' : daysUntilExpiry < 30 ? `Изтича след ${daysUntilExpiry} дни` : `${daysUntilExpiry} дни остават`;
 
@@ -193,15 +198,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     setError('');
 
     const selectedCode = register === 'orders' ? orderTypeCode : nomenclatureCode;
-
     if (!isEdit && register !== 'contracts' && !selectedCode) {
       setError('Моля изберете номенклатурен код.');
-      setLoading(false);
-      return;
-    }
-
-    if (register === 'contracts' && startDate && endDate && endDate < startDate) {
-      setError('Крайната дата не може да е преди началната дата!');
       setLoading(false);
       return;
     }
@@ -212,7 +210,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       return;
     }
 
-    // Генерираме реалния номер само при нов запис
     let finalNumber = isEdit ? (initialData?.number || '') : number;
     if (!isEdit && register !== 'contracts' && selectedCode) {
       finalNumber = await generateRealNumber(selectedCode);
@@ -239,17 +236,14 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
         setLoading(false);
         return;
       }
-
       const ext = file.name.split('.').pop();
       const filePath = `${register}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file, { upsert: true });
-
       if (uploadError) {
         setError(`Грешка при качване на файл: ${uploadError.message}`);
         setLoading(false);
         return;
       }
-
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath);
       fileUrl = urlData.publicUrl;
       fileName = file.name;
@@ -307,9 +301,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       payload.internal_owner = internalOwner;
     }
 
-    if (!isEdit) {
-      payload.created_by = userId;
-    }
+    if (!isEdit) payload.created_by = userId;
 
     let dbError;
     if (isEdit) {
@@ -363,10 +355,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Label>Номенклатура *</Label>
                     <select
                       value={nomenclatureCode}
-                      onChange={async (e) => {
-                        setNomenclatureCode(e.target.value);
-                        await updatePreview(e.target.value);
-                      }}
+                      onChange={async (e) => { setNomenclatureCode(e.target.value); await updatePreview(e.target.value); }}
                       required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -378,19 +367,22 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   </div>
                   <div className="space-y-1.5">
                     <Label>Очакван номер</Label>
-                    <Input
-                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
-                      readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
-                    />
-                    {!isEdit && previewNumber && (
-                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
-                    )}
+                    <Input value={loadingPreview ? 'Зареждане...' : numberDisplay} readOnly className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500" />
+                    {!isEdit && previewNumber && <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="from_whom">От кого *</Label>
-                  <input   id="from_whom"   list="from_whom_list"   value={fromWhom}   onChange={(e) => setFromWhom(e.target.value)}   placeholder="Институция / лице"   required   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" /> <datalist id="from_whom_list">   <option value="МОН — Министерство на образованието и науката" />   <option value="РУО — Варна" />   <option value="РУО — София" />   <option value="Община Варна" />   <option value="Агенция за социално подпомагане" />   <option value="РЗОК — Варна" />   <option value="Национален институт за образование" /> </datalist>
+                  <input id="from_whom" list="from_whom_list" value={fromWhom} onChange={(e) => setFromWhom(e.target.value)} placeholder="Институция / лице" required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                  <datalist id="from_whom_list">
+                    <option value="МОН — Министерство на образованието и науката" />
+                    <option value="РУО — Варна" />
+                    <option value="РУО — София" />
+                    <option value="Община Варна" />
+                    <option value="Агенция за социално подпомагане" />
+                    <option value="РЗОК — Варна" />
+                    <option value="Национален институт за образование" />
+                  </datalist>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
@@ -431,10 +423,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Label>Номенклатура *</Label>
                     <select
                       value={nomenclatureCode}
-                      onChange={async (e) => {
-                        setNomenclatureCode(e.target.value);
-                        await updatePreview(e.target.value);
-                      }}
+                      onChange={async (e) => { setNomenclatureCode(e.target.value); await updatePreview(e.target.value); }}
                       required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -446,19 +435,22 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   </div>
                   <div className="space-y-1.5">
                     <Label>Очакван номер</Label>
-                    <Input
-                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
-                      readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
-                    />
-                    {!isEdit && previewNumber && (
-                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
-                    )}
+                    <Input value={loadingPreview ? 'Зареждане...' : numberDisplay} readOnly className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500" />
+                    {!isEdit && previewNumber && <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="to_whom">До кого *</Label>
-                  <input   id="to_whom"   list="to_whom_list"   value={toWhom}   onChange={(e) => setToWhom(e.target.value)}   placeholder="Институция / лице"   required   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" /> <datalist id="to_whom_list">   <option value="МОН — Министерство на образованието и науката" />   <option value="РУО — Варна" />   <option value="РУО — София" />   <option value="Община Варна" />   <option value="Агенция за социално подпомагане" />   <option value="РЗОК — Варна" />   <option value="Национален институт за образование" /> </datalist>
+                  <input id="to_whom" list="to_whom_list" value={toWhom} onChange={(e) => setToWhom(e.target.value)} placeholder="Институция / лице" required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                  <datalist id="to_whom_list">
+                    <option value="МОН — Министерство на образованието и науката" />
+                    <option value="РУО — Варна" />
+                    <option value="РУО — София" />
+                    <option value="Община Варна" />
+                    <option value="Агенция за социално подпомагане" />
+                    <option value="РЗОК — Варна" />
+                    <option value="Национален институт за образование" />
+                  </datalist>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
@@ -498,10 +490,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <select
                       id="order_type_code"
                       value={orderTypeCode}
-                      onChange={async (e) => {
-                        setOrderTypeCode(e.target.value);
-                        await updatePreview(e.target.value);
-                      }}
+                      onChange={async (e) => { setOrderTypeCode(e.target.value); await updatePreview(e.target.value); }}
                       required
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -513,14 +502,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   </div>
                   <div className="space-y-1.5">
                     <Label>Очакван номер</Label>
-                    <Input
-                      value={loadingPreview ? 'Зареждане...' : numberDisplay}
-                      readOnly
-                      className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500"
-                    />
-                    {!isEdit && previewNumber && (
-                      <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>
-                    )}
+                    <Input value={loadingPreview ? 'Зареждане...' : numberDisplay} readOnly className="bg-gray-50 cursor-not-allowed font-mono text-sm text-gray-500" />
+                    {!isEdit && previewNumber && <p className="text-xs text-amber-600">* Номерът се потвърждава при запис</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -539,7 +522,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     </select>
                   </div>
                 </div>
-
                 {isLeave(orderType) && (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -558,7 +540,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     </div>
                   </>
                 )}
-
                 {isMission(orderType) && (
                   <>
                     <div className="space-y-1.5">
@@ -607,14 +588,27 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   <Label htmlFor="subject">Предмет на договора *</Label>
                   <Textarea id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Кратко описание..." rows={2} required />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                   <div className="space-y-1.5">
                     <Label>Начална дата *</Label>
                     <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
+                    <Label htmlFor="duration">Срок (години) *</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min="1"
+                      max="99"
+                      placeholder="напр. 1"
+                      value={durationYears}
+                      onChange={(e) => setDurationYears(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
                     <Label>Крайна дата</Label>
-                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    <Input value={endDate ? new Date(endDate).toLocaleDateString('bg-BG') : '—'} readOnly className="bg-gray-50 cursor-not-allowed text-gray-600" />
                   </div>
                 </div>
                 {expiryText && <p className={`text-xs font-medium ${expiryColor}`}>{expiryText}</p>}
@@ -681,18 +675,14 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
                   <FileText size={16} className="text-blue-600 flex-shrink-0" />
                   <span className="text-sm text-blue-700 flex-1 truncate">{existingFileName}</span>
-                  <button type="button" className="text-gray-400 hover:text-red-500" onClick={() => setExistingFileName('')}>
-                    <X size={16} />
-                  </button>
+                  <button type="button" className="text-gray-400 hover:text-red-500" onClick={() => setExistingFileName('')}><X size={16} /></button>
                 </div>
               )}
               {file ? (
                 <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-100">
                   <FileText size={16} className="text-green-600 flex-shrink-0" />
                   <span className="text-sm text-green-700 flex-1 truncate">{file.name}</span>
-                  <button type="button" className="text-gray-400 hover:text-red-500" onClick={() => setFile(null)}>
-                    <X size={16} />
-                  </button>
+                  <button type="button" className="text-gray-400 hover:text-red-500" onClick={() => setFile(null)}><X size={16} /></button>
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors">
