@@ -175,7 +175,6 @@ export default function RegisterTable({
   async function handleExport() {
     setExporting(true);
     try {
-      // Зареди всички записи за експорт
       const { data: allData } = await supabase
         .from(register)
         .select('*')
@@ -186,20 +185,26 @@ export default function RegisterTable({
         return;
       }
 
-      // Заглавен ред
       const headers = columns.map(c => c.label);
       const rows = allData.map(row =>
         columns.map(col => cellToText(col.key, row[col.key]))
       );
 
-      // Построй CSV съдържание с BOM за кирилица
-      const BOM = '\uFEFF';
-      const csvContent = BOM + 'sep=;\n' + [headers, ...rows]
-        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-        .join('\n');
+      const csvLines = ['sep=;', headers.join(';'), ...rows.map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+      )].join('\r\n');
 
-      // Свали файла
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // UTF-16 LE encoding за Excel
+      const buf = new ArrayBuffer(2 + csvLines.length * 2);
+      const view = new DataView(buf);
+      // BOM за UTF-16 LE
+      view.setUint8(0, 0xFF);
+      view.setUint8(1, 0xFE);
+      for (let i = 0; i < csvLines.length; i++) {
+        view.setUint16(2 + i * 2, csvLines.charCodeAt(i), true);
+      }
+
+      const blob = new Blob([buf], { type: 'text/csv;charset=utf-16le;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
