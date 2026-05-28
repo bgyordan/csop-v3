@@ -8,19 +8,19 @@ const PAGE_SIZE = 20;
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; year?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (!profile) redirect('/login');
-
   const userRole = (profile as { role: Role }).role;
+
   const page = Math.max(1, parseInt(params.page || '1'));
   const q = params.q || '';
+  const year = params.year || '';
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
@@ -32,7 +32,10 @@ export default async function OrdersPage({
     .range(from, to);
 
   if (q) {
-    query = query.or(`number.ilike.%${q}%,title.ilike.%${q}%,employee.ilike.%${q}%`);
+    query = query.or(`number.ilike.%${q}%,title.ilike.%${q}%`);
+  }
+  if (year) {
+    query = query.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
   }
 
   const { data, count } = await query;
@@ -47,6 +50,7 @@ export default async function OrdersPage({
       page={page}
       pageSize={PAGE_SIZE}
       searchValue={q}
+      yearValue={year}
     />
   );
 }
