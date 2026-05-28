@@ -59,6 +59,7 @@ const registerColumnConfigs: Record<RegisterType, { key: string; label: string }
   ],
   orders: [
     { key: 'number', label: '№' },
+    { key: 'order_type_code', label: 'Вид' },
     { key: 'date', label: 'Дата' },
     { key: 'title', label: 'Заглавие' },
     { key: 'file_name', label: 'Файл' },
