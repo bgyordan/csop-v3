@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Inbox, Send, FileText, ScrollText, Clock, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import GlobalSearch from '@/components/GlobalSearch';
 
 const registerIcons = {
   incoming: Inbox,
@@ -121,13 +122,18 @@ export default async function DashboardPage() {
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Добре дошли, {profile?.full_name || profile?.email}!
         </h1>
         <p className="text-gray-500 mt-1">
           {today.toLocaleDateString('bg-BG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
+      </div>
+
+      {/* Global Search */}
+      <div className="mb-6">
+        <GlobalSearch />
       </div>
 
       {/* Count cards */}
