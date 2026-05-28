@@ -194,8 +194,8 @@ export type Contract = Database['public']['Tables']['contracts']['Row'];
 export type RegisterType = 'incoming' | 'outgoing' | 'orders' | 'contracts';
 
 export const REGISTER_LABELS: Record<RegisterType, string> = {
-  incoming: 'Входяща поща',
-  outgoing: 'Изходяща поща',
+  incoming: 'Регистър-входящи',
+  outgoing: 'Регистър-изходящи',
   orders: 'Заповеди',
   contracts: 'Договори',
 };
