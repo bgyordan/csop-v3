@@ -63,12 +63,6 @@ const RESOLUTIONS = [
 const isLeave = (type: string) => type.startsWith('leave');
 const isMission = (type: string) => type === 'mission' || type === 'duty';
 
-interface OrderTypeItem {
-  id: string;
-  code: string;
-  name: string;
-}
-
 interface NomenclatureItem {
   id: string;
   code: string;
@@ -81,11 +75,10 @@ interface RecordFormProps {
   nextNumber?: string;
   userId: string;
   mode: 'create' | 'edit';
-  orderTypes?: OrderTypeItem[];
   nomenclatures?: NomenclatureItem[];
 }
 
-export default function RecordForm({ register, initialData, nextNumber, userId, mode, orderTypes = [], nomenclatures = [] }: RecordFormProps) {
+export default function RecordForm({ register, initialData, nextNumber, userId, mode, nomenclatures = [] }: RecordFormProps) {
   const router = useRouter();
   const supabase = createClient();
   const isEdit = mode === 'edit';
@@ -452,15 +445,15 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Изберете вид...</option>
-                    {orderTypes.map(t => (
-                      <option key={t.code} value={t.code}>{t.code} — {t.name}</option>
+                    {nomenclatures.map(n => (
+                      <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="number">Регистрационен номер</Label>
+                  <Label htmlFor="number_orders">Регистрационен номер</Label>
                   <Input
-                    id="number"
+                    id="number_orders"
                     value={generatingNumber ? 'Генериране...' : number}
                     readOnly
                     className="bg-gray-50 cursor-not-allowed font-mono"
@@ -474,7 +467,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label htmlFor="employee">Служител — незадължително</Label>
-                    <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Име и длъжност" />
+                    <Input id="employee" value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Ime и длъжност" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="assignee_orders">Отговорник — незадължително</Label>
