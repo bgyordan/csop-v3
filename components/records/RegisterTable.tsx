@@ -37,6 +37,7 @@ interface RegisterTableProps {
   page: number;
   pageSize?: number;
   searchValue?: string;
+  yearValue?: string;
 }
 
 const registerColumnConfigs: Record<RegisterType, { key: string; label: string }[]> = {
@@ -122,6 +123,9 @@ function cellToText(key: string, value: unknown): string {
   return String(value);
 }
 
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
 export default function RegisterTable({
   register,
   title,
@@ -131,6 +135,7 @@ export default function RegisterTable({
   page,
   pageSize = 20,
   searchValue = '',
+  yearValue = '',
 }: RegisterTableProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -145,10 +150,28 @@ export default function RegisterTable({
   const totalPages = Math.ceil(totalCount / pageSize);
   const columns = registerColumnConfigs[register];
 
+  function buildParams(overrides: Record<string, string>) {
+    const params = new URLSearchParams();
+    if (search) params.set('q', search);
+    if (yearValue) params.set('year', yearValue);
+    params.set('page', '1');
+    Object.entries(overrides).forEach(([k, v]) => v ? params.set(k, v) : params.delete(k));
+    return params.toString();
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const params = new URLSearchParams();
     if (search) params.set('q', search);
+    if (yearValue) params.set('year', yearValue);
+    params.set('page', '1');
+    router.push(`/${register}?${params.toString()}`);
+  }
+
+  function handleYearChange(y: string) {
+    const params = new URLSearchParams();
+    if (search) params.set('q', search);
+    if (y) params.set('year', y);
     params.set('page', '1');
     router.push(`/${register}?${params.toString()}`);
   }
@@ -156,6 +179,7 @@ export default function RegisterTable({
   function handlePageChange(newPage: number) {
     const params = new URLSearchParams();
     if (search) params.set('q', search);
+    if (yearValue) params.set('year', yearValue);
     params.set('page', String(newPage));
     router.push(`/${register}?${params.toString()}`);
   }
@@ -172,11 +196,11 @@ export default function RegisterTable({
   async function handleExport() {
     setExporting(true);
     try {
-      const { data: allData } = await supabase
-        .from(register)
-        .select('*')
-        .order('date', { ascending: true });
-
+      let query = supabase.from(register).select('*').order('date', { ascending: true });
+      if (yearValue) {
+        query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
+      }
+      const { data: allData } = await query;
       if (!allData || allData.length === 0) return;
 
       const XLSX = await import('xlsx');
@@ -191,8 +215,9 @@ export default function RegisterTable({
         return { wch: 40 };
       });
       const wb = XLSX.utils.book_new();
+      const suffix = yearValue ? `_${yearValue}` : `_${currentYear}`;
       XLSX.utils.book_append_sheet(wb, ws, registerTitles[register].substring(0, 31));
-      XLSX.writeFile(wb, `${registerTitles[register]}_${new Date().getFullYear()}.xlsx`);
+      XLSX.writeFile(wb, `${registerTitles[register]}${suffix}.xlsx`);
     } finally {
       setExporting(false);
     }
@@ -201,37 +226,32 @@ export default function RegisterTable({
   async function handleExportPdf() {
     setExportingPdf(true);
     try {
-      const { data: allData } = await supabase
-        .from(register)
-        .select('*')
-        .order('date', { ascending: true });
-
+      let query = supabase.from(register).select('*').order('date', { ascending: true });
+      if (yearValue) {
+        query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
+      }
+      const { data: allData } = await query;
       if (!allData || allData.length === 0) return;
 
       const jsPDF = (await import('jspdf')).default;
       const autoTable = (await import('jspdf-autotable')).default;
 
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-      // Зареди кирилски шрифт
       doc.addFont('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5Q.ttf', 'Roboto', 'normal');
       doc.setFont('Roboto');
 
       const today = new Date().toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const year = new Date().getFullYear();
+      const yearLabel = yearValue || currentYear;
 
-      // Хедър
       doc.setFontSize(14);
-      doc.setFont('Roboto', 'normal');
       doc.text('ЦСОП Варна — Деловодна система', 148, 15, { align: 'center' });
       doc.setFontSize(11);
-      doc.text(`${registerTitles[register]} — ${year} г.`, 148, 22, { align: 'center' });
+      doc.text(`${registerTitles[register]} — ${yearLabel} г.`, 148, 22, { align: 'center' });
       doc.setFontSize(8);
       doc.setTextColor(150);
       doc.text(`Генерирано на: ${today}`, 148, 28, { align: 'center' });
       doc.setTextColor(0);
 
-      // Таблица
       const headers = columns.map(c => c.label);
       const rows = allData.map(row => columns.map(col => cellToText(col.key, row[col.key])));
 
@@ -264,7 +284,6 @@ export default function RegisterTable({
           return acc;
         }, {} as Record<number, { cellWidth: number | 'auto' }>),
         didDrawPage: (data) => {
-          // Футър
           const pageCount = doc.getNumberOfPages();
           doc.setFontSize(7);
           doc.setTextColor(150);
@@ -278,7 +297,8 @@ export default function RegisterTable({
         },
       });
 
-      doc.save(`${registerTitles[register]}_${year}.pdf`);
+      const suffix = yearValue ? `_${yearValue}` : `_${currentYear}`;
+      doc.save(`${registerTitles[register]}${suffix}.pdf`);
     } finally {
       setExportingPdf(false);
     }
@@ -290,7 +310,7 @@ export default function RegisterTable({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalCount} записа общо</p>
+          <p className="text-sm text-gray-500 mt-1">{totalCount} записа общо{yearValue ? ` за ${yearValue} г.` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -322,14 +342,14 @@ export default function RegisterTable({
         </div>
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="mb-4">
-        <div className="flex gap-2 max-w-md">
-          <div className="relative flex-1">
+      {/* Search + Year filter */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Търсене..."
-              className="pl-9"
+              className="pl-9 w-56"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -339,13 +359,32 @@ export default function RegisterTable({
             <Button
               type="button"
               variant="ghost"
-              onClick={() => { setSearch(''); router.push(`/${register}`); }}
+              onClick={() => { setSearch(''); router.push(`/${register}${yearValue ? `?year=${yearValue}` : ''}`); }}
             >
               Изчисти
             </Button>
           )}
+        </form>
+
+        {/* Year filter */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleYearChange('')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${!yearValue ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+          >
+            Всички
+          </button>
+          {years.map(y => (
+            <button
+              key={y}
+              onClick={() => handleYearChange(String(y))}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${yearValue === String(y) ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+            >
+              {y}
+            </button>
+          ))}
         </div>
-      </form>
+      </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -421,21 +460,11 @@ export default function RegisterTable({
             Страница {page} от {totalPages}
           </p>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => handlePageChange(page - 1)}
-            >
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => handlePageChange(page - 1)}>
               <ChevronLeft size={16} />
               Назад
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => handlePageChange(page + 1)}
-            >
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)}>
               Напред
               <ChevronRight size={16} />
             </Button>
@@ -454,11 +483,7 @@ export default function RegisterTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Отказ</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
               {deleting ? 'Изтриване...' : 'Изтрий'}
             </AlertDialogAction>
           </AlertDialogFooter>
