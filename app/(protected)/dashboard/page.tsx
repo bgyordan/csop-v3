@@ -173,13 +173,13 @@ export default async function DashboardPage() {
               <Link href="/records/incoming/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-blue-700 border-blue-200 hover:bg-blue-50">
                   <Inbox size={15} />
-                  Нова входяща поща
+                  Нов входящ
                 </Button>
               </Link>
               <Link href="/records/outgoing/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-green-700 border-green-200 hover:bg-green-50">
                   <Send size={15} />
-                  Нова изходяща поща
+                  Нов входящ
                 </Button>
               </Link>
               <Link href="/records/orders/new" className="block">
