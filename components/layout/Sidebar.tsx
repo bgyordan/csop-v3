@@ -163,7 +163,8 @@ export default function Sidebar({ profile }: SidebarProps) {
   );
 
   return (
-    <>
+    <div className="contents">
+      {/* Mobile toggle */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
@@ -171,6 +172,7 @@ export default function Sidebar({ profile }: SidebarProps) {
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/40"
@@ -178,6 +180,7 @@ export default function Sidebar({ profile }: SidebarProps) {
         />
       )}
 
+      {/* Mobile sidebar */}
       <aside
         className={cn(
           'lg:hidden fixed top-0 left-0 z-50 w-64 h-full transition-transform duration-300',
@@ -187,4 +190,10 @@ export default function Sidebar({ profile }: SidebarProps) {
         {sidebarContent}
       </aside>
 
-      <aside className="hidden
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:block w-64 flex-shrink-0 h-full">
+        {sidebarContent}
+      </aside>
+    </div>
+  );
+}
