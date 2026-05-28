@@ -8,9 +8,11 @@ export const metadata: Metadata = {
   title: 'ЦСОП Варна — Деловодна система',
   description: 'Деловодна система на ЦСОП Варна',
   openGraph: {
+    title: 'ЦСОП Варна — Деловодна система',
+    description: 'Деловодна система на ЦСОП Варна',
     images: [
       {
-        url: 'https://bolt.new/static/og_default.png',
+        url: 'https://delo.csop-varna.bg/CsopLOGO.jpg',
       },
     ],
   },
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     images: [
       {
-        url: 'https://bolt.new/static/og_default.png',
+        url: 'https://delo.csop-varna.bg/CsopLOGO.jpg',
       },
     ],
   },
