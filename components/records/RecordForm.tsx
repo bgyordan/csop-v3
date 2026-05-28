@@ -458,7 +458,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="to_whom">До кого *</Label>
-                  <Input id="to_whom" value={toWhom} onChange={(e) => setToWhom(e.target.value)} placeholder="Институция / лице" required />
+                  <input   id="to_whom"   list="to_whom_list"   value={toWhom}   onChange={(e) => setToWhom(e.target.value)}   placeholder="Институция / лице"   required   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" /> <datalist id="to_whom_list">   <option value="МОН — Министерство на образованието и науката" />   <option value="РУО — Варна" />   <option value="РУО — София" />   <option value="Община Варна" />   <option value="Агенция за социално подпомагане" />   <option value="РЗОК — Варна" />   <option value="Национален институт за образование" /> </datalist>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
