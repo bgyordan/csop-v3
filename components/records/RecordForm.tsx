@@ -608,7 +608,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                   </div>
                   <div className="space-y-1.5">
                     <Label>Крайна дата</Label>
-                    <Input value={endDate ? new Date(endDate).toLocaleDateString('bg-BG') : '—'} readOnly className="bg-gray-50 cursor-not-allowed text-gray-600" />
+                    <Input value={endDate ? new Date(endDate).toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'} readOnly className="bg-gray-50 cursor-not-allowed text-gray-600" />
                   </div>
                 </div>
                 {expiryText && <p className={`text-xs font-medium ${expiryColor}`}>{expiryText}</p>}
