@@ -19,20 +19,6 @@ type OrderType = 'leave_paid' | 'leave_unpaid' | 'leave_sick' | 'leave_maternity
 type ContractType = 'delivery' | 'service' | 'rent' | 'labor' | 'civil' | 'other';
 type ContractStatus = 'in_progress' | 'expired' | 'terminated';
 
-const ORDER_TYPES: { value: OrderType | ''; label: string }[] = [
-  { value: '', label: 'Изберете вид...' },
-  { value: 'leave_paid', label: 'Отпуск — платен' },
-  { value: 'leave_unpaid', label: 'Отпуск — неплатен' },
-  { value: 'leave_sick', label: 'Отпуск — болничен' },
-  { value: 'leave_maternity', label: 'Отпуск — майчинство' },
-  { value: 'mission', label: 'Командировка' },
-  { value: 'duty', label: 'Дежурство' },
-  { value: 'hire', label: 'Назначаване' },
-  { value: 'dismiss', label: 'Освобождаване' },
-  { value: 'education', label: 'Учебна дейност' },
-  { value: 'other', label: 'Друга' },
-];
-
 const CONTRACT_TYPES: { value: ContractType | ''; label: string }[] = [
   { value: '', label: 'Изберете вид...' },
   { value: 'delivery', label: 'Доставка' },
@@ -83,6 +69,12 @@ interface OrderTypeItem {
   name: string;
 }
 
+interface NomenclatureItem {
+  id: string;
+  code: string;
+  description: string;
+}
+
 interface RecordFormProps {
   register: RegisterType;
   initialData?: Record<string, string>;
@@ -90,20 +82,21 @@ interface RecordFormProps {
   userId: string;
   mode: 'create' | 'edit';
   orderTypes?: OrderTypeItem[];
+  nomenclatures?: NomenclatureItem[];
 }
 
-export default function RecordForm({ register, initialData, nextNumber, userId, mode, orderTypes = [] }: RecordFormProps) {
+export default function RecordForm({ register, initialData, nextNumber, userId, mode, orderTypes = [], nomenclatures = [] }: RecordFormProps) {
   const router = useRouter();
   const supabase = createClient();
   const isEdit = mode === 'edit';
   const today = new Date().toISOString().slice(0, 10);
 
+  const [nomenclatureCode, setNomenclatureCode] = useState(isEdit ? (initialData?.nomenclature_code || '') : '');
   const [number, setNumber] = useState<string>(
     isEdit ? (initialData?.number || '') : (nextNumber || `1/${getCurrentYear()}`)
   );
   const [date] = useState<string>(isEdit ? (initialData?.date || today) : today);
 
-  // Incoming/Outgoing
   const [fromWhom, setFromWhom] = useState(isEdit ? (initialData?.from_whom || '') : '');
   const [toWhom, setToWhom] = useState(isEdit ? (initialData?.to_whom || '') : '');
   const [replyTo, setReplyTo] = useState(isEdit ? (initialData?.reply_to || '') : '');
@@ -115,7 +108,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [deadline, setDeadline] = useState(isEdit ? (initialData?.deadline || '') : '');
   const [assignee, setAssignee] = useState(isEdit ? (initialData?.assignee || '') : '');
 
-  // Orders
   const [title, setTitle] = useState(isEdit ? (initialData?.title || '') : '');
   const [orderTypeCode, setOrderTypeCode] = useState(isEdit ? (initialData?.order_type_code || '') : '');
   const [generatingNumber, setGeneratingNumber] = useState(false);
@@ -126,7 +118,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [toDate, setToDate] = useState(isEdit ? (initialData?.to_date || '') : '');
   const [days, setDays] = useState(isEdit ? (initialData?.days || '') : '');
 
-  // Contracts
   const [counterparty, setCounterparty] = useState(isEdit ? (initialData?.counterparty || '') : '');
   const [contractType, setContractType] = useState<ContractType | ''>(isEdit ? (initialData?.contract_type || '') as ContractType : '');
   const [startDate, setStartDate] = useState(isEdit ? (initialData?.start_date || '') : today);
@@ -244,6 +235,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       payload.resolution = resolution;
       payload.doc_date = docDate || null;
       payload.deadline = deadline || null;
+      payload.nomenclature_code = nomenclatureCode || null;
     }
 
     if (register === 'outgoing') {
@@ -252,6 +244,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       payload.reply_to = replyTo;
       payload.send_method = sendMethod;
       payload.doc_date = docDate || null;
+      payload.nomenclature_code = nomenclatureCode || null;
     }
 
     if (register === 'orders') {
@@ -325,7 +318,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
 
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Номер и дата на завеждане */}
+            {/* Номер и дата */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <Label htmlFor="number">Регистрационен номер *</Label>
@@ -337,9 +330,25 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
               </div>
             </div>
 
-            {/* ВХОДЯЩА ПОЩА */}
+            {/* ВХОДЯЩА */}
             {register === 'incoming' && (
               <>
+                {nomenclatures.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nomenclature_code">Номенклатура — незадължително</Label>
+                    <select
+                      id="nomenclature_code"
+                      value={nomenclatureCode}
+                      onChange={(e) => setNomenclatureCode(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Без номенклатура</option>
+                      {nomenclatures.map(n => (
+                        <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="from_whom">От кого *</Label>
                   <Input id="from_whom" value={fromWhom} onChange={(e) => setFromWhom(e.target.value)} placeholder="Институция / лице" required />
@@ -375,9 +384,25 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
               </>
             )}
 
-            {/* ИЗХОДЯЩА ПОЩА */}
+            {/* ИЗХОДЯЩА */}
             {register === 'outgoing' && (
               <>
+                {nomenclatures.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nomenclature_code_out">Номенклатура — незадължително</Label>
+                    <select
+                      id="nomenclature_code_out"
+                      value={nomenclatureCode}
+                      onChange={(e) => setNomenclatureCode(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Без номенклатура</option>
+                      {nomenclatures.map(n => (
+                        <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="to_whom">До кого *</Label>
                   <Input id="to_whom" value={toWhom} onChange={(e) => setToWhom(e.target.value)} placeholder="Институция / лице" required />
@@ -566,17 +591,13 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input className="mt-2" placeholder="Въведете ime и длъжност..." value={customResponsible} onChange={(e) => setCustomResponsible(e.target.value)} required />
                   )}
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="assignee_contracts">Отговорник — незадължително</Label>
+                  <select id="assignee_contracts" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                  </select>
+                </div>
               </>
-            )}
-
-            {/* Договори - assignee */}
-            {register === 'contracts' && (
-              <div className="space-y-1.5">
-                <Label htmlFor="assignee_contracts">Отговорник — незадължително</Label>
-                <select id="assignee_contracts" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                </select>
-              </div>
             )}
 
             {/* Описание */}
