@@ -28,8 +28,8 @@ interface SidebarProps {
 
 const navItems = [
   { href: '/dashboard', label: 'Начало', icon: LayoutDashboard },
-  { href: '/incoming', label: 'Входяща поща', icon: Inbox },
-  { href: '/outgoing', label: 'Изходяща поща', icon: Send },
+  { href: '/incoming', label: 'Регистър-входящи', icon: Inbox },
+  { href: '/outgoing', label: 'Регистър-изходящи', icon: Send },
   { href: '/orders', label: 'Заповеди', icon: FileText },
   { href: '/contracts', label: 'Договори', icon: ScrollText },
 ];
