@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface RegisterTableProps {
   register: RegisterType;
@@ -71,6 +71,13 @@ const registerColumnConfigs: Record<RegisterType, { key: string; label: string }
   ],
 };
 
+const registerTitles: Record<RegisterType, string> = {
+  incoming: 'Регистър-входящи',
+  outgoing: 'Регистър-изходящи',
+  orders: 'Заповеди',
+  contracts: 'Договори',
+};
+
 const numberColors: Record<RegisterType, string> = {
   incoming: 'text-blue-700',
   outgoing: 'text-green-700',
@@ -110,6 +117,15 @@ function renderCell(register: RegisterType, key: string, value: unknown): React.
   return String(value);
 }
 
+function cellToText(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (key === 'date' || key === 'start_date' || key === 'end_date') {
+    return formatBgDate(value as string) as string;
+  }
+  if (key === 'file_name') return value ? 'Да' : '';
+  return String(value);
+}
+
 export default function RegisterTable({
   register,
   title,
@@ -125,6 +141,7 @@ export default function RegisterTable({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState(searchValue);
+  const [exporting, setExporting] = useState(false);
 
   const canEdit = userRole === 'admin' || userRole === 'secretary';
   const canDelete = userRole === 'admin';
@@ -155,6 +172,45 @@ export default function RegisterTable({
     router.refresh();
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      // Зареди всички записи за експорт
+      const { data: allData } = await supabase
+        .from(register)
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (!allData || allData.length === 0) {
+        setExporting(false);
+        return;
+      }
+
+      // Заглавен ред
+      const headers = columns.map(c => c.label);
+      const rows = allData.map(row =>
+        columns.map(col => cellToText(col.key, row[col.key]))
+      );
+
+      // Построй CSV съдържание с BOM за кирилица
+      const BOM = '\uFEFF';
+      const csvContent = BOM + [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      // Свали файла
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${registerTitles[register]}_${new Date().getFullYear()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
@@ -163,14 +219,25 @@ export default function RegisterTable({
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           <p className="text-sm text-gray-500 mt-1">{totalCount} записа общо</p>
         </div>
-        {canEdit && (
-          <Link href={`/records/${register}/new`}>
-            <Button className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
-              <Plus size={16} />
-              Нов запис
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2 text-gray-600 border-gray-200 hover:bg-gray-50"
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            <Download size={15} />
+            {exporting ? 'Експортиране...' : 'Експорт Excel'}
+          </Button>
+          {canEdit && (
+            <Link href={`/records/${register}/new`}>
+              <Button className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
+                <Plus size={16} />
+                Нов запис
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Search */}
