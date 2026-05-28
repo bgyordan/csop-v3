@@ -85,9 +85,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const today = new Date().toISOString().slice(0, 10);
 
   const [nomenclatureCode, setNomenclatureCode] = useState(isEdit ? (initialData?.nomenclature_code || '') : '');
-  const [number, setNumber] = useState<string>(
-    isEdit ? (initialData?.number || '') : (nextNumber || `1/${getCurrentYear()}`)
-  );
+  const [number, setNumber] = useState<string>(isEdit ? (initialData?.number || '') : '');
+  const [generatingNumber, setGeneratingNumber] = useState(false);
   const [date] = useState<string>(isEdit ? (initialData?.date || today) : today);
 
   const [fromWhom, setFromWhom] = useState(isEdit ? (initialData?.from_whom || '') : '');
@@ -103,7 +102,6 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
 
   const [title, setTitle] = useState(isEdit ? (initialData?.title || '') : '');
   const [orderTypeCode, setOrderTypeCode] = useState(isEdit ? (initialData?.order_type_code || '') : '');
-  const [generatingNumber, setGeneratingNumber] = useState(false);
   const [orderType, setOrderType] = useState<OrderType | ''>(isEdit ? (initialData?.order_type || '') as OrderType : '');
   const [employee, setEmployee] = useState(isEdit ? (initialData?.employee || '') : '');
   const [destination, setDestination] = useState(isEdit ? (initialData?.destination || '') : '');
@@ -129,19 +127,23 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const generateOrderNumber = async (code: string) => {
-    if (!code) return;
+  const currentYear = new Date().getFullYear();
+
+  async function generateNumber(code: string) {
+    if (!code || isEdit) return;
     setGeneratingNumber(true);
-    const currentYear = new Date().getFullYear();
-    const { data, error } = await supabase.rpc('get_next_order_number', {
-      order_code: code,
+    let rpcName = '';
+    if (register === 'incoming') rpcName = 'get_next_incoming_number';
+    else if (register === 'outgoing') rpcName = 'get_next_outgoing_number';
+    else if (register === 'orders') rpcName = 'get_next_order_number';
+
+    const { data, error } = await supabase.rpc(rpcName, {
+      [register === 'orders' ? 'order_code' : 'nom_code']: code,
       current_year: currentYear,
     });
-    if (!error && data) {
-      setNumber(data);
-    }
+    if (!error && data) setNumber(data);
     setGeneratingNumber(false);
-  };
+  }
 
   const calcDays = (from: string, to: string) => {
     if (from && to) {
@@ -169,6 +171,12 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!isEdit && !number && register !== 'contracts') {
+      setError('Моля изберете номенклатурен код за да се генерира номер.');
+      setLoading(false);
+      return;
+    }
 
     if (register === 'contracts' && startDate && endDate && endDate < startDate) {
       setError('Крайната дата не може да е преди началната дата!');
@@ -213,8 +221,10 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       fileName = file.name;
     }
 
+    const finalNumber = number || `${new Date().getTime()}`;
+
     const payload: Record<string, unknown> = {
-      number,
+      number: finalNumber,
       date,
       description,
       file_url: fileUrl,
@@ -252,6 +262,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     }
 
     if (register === 'contracts') {
+      payload.number = number || `${maxNum + 1}/${currentYear}`;
       payload.counterparty = counterparty;
       payload.subject = subject;
       payload.contract_type = contractType;
@@ -311,37 +322,37 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
 
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Номер и дата */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="number">Регистрационен номер *</Label>
-                <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="1/2026" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="date">Дата на завеждане</Label>
-                <Input id="date" type="date" value={date} readOnly className="bg-gray-50 cursor-not-allowed" />
-              </div>
-            </div>
-
             {/* ВХОДЯЩА */}
             {register === 'incoming' && (
               <>
-                {nomenclatures.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nomenclature_code">Номенклатура — незадължително</Label>
+                    <Label htmlFor="nomenclature_code">Номенклатура *</Label>
                     <select
                       id="nomenclature_code"
                       value={nomenclatureCode}
-                      onChange={(e) => setNomenclatureCode(e.target.value)}
+                      onChange={async (e) => {
+                        setNomenclatureCode(e.target.value);
+                        await generateNumber(e.target.value);
+                      }}
+                      required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
-                      <option value="">Без номенклатура</option>
+                      <option value="">Изберете код...</option>
                       {nomenclatures.map(n => (
                         <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
                       ))}
                     </select>
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <Label>Регистрационен номер</Label>
+                    <Input
+                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на код')}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="from_whom">От кого *</Label>
                   <Input id="from_whom" value={fromWhom} onChange={(e) => setFromWhom(e.target.value)} placeholder="Институция / лице" required />
@@ -380,22 +391,34 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
             {/* ИЗХОДЯЩА */}
             {register === 'outgoing' && (
               <>
-                {nomenclatures.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nomenclature_code_out">Номенклатура — незадължително</Label>
+                    <Label htmlFor="nomenclature_code_out">Номенклатура *</Label>
                     <select
                       id="nomenclature_code_out"
                       value={nomenclatureCode}
-                      onChange={(e) => setNomenclatureCode(e.target.value)}
+                      onChange={async (e) => {
+                        setNomenclatureCode(e.target.value);
+                        await generateNumber(e.target.value);
+                      }}
+                      required={!isEdit}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
-                      <option value="">Без номенклатура</option>
+                      <option value="">Изберете код...</option>
                       {nomenclatures.map(n => (
                         <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
                       ))}
                     </select>
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <Label>Регистрационен номер</Label>
+                    <Input
+                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на код')}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="to_whom">До кого *</Label>
                   <Input id="to_whom" value={toWhom} onChange={(e) => setToWhom(e.target.value)} placeholder="Институция / лице" required />
@@ -432,33 +455,33 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
             {/* ЗАПОВЕДИ */}
             {register === 'orders' && (
               <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="order_type_code">Вид заповед *</Label>
-                  <select
-                    id="order_type_code"
-                    value={orderTypeCode}
-                    onChange={async (e) => {
-                      setOrderTypeCode(e.target.value);
-                      if (!isEdit) await generateOrderNumber(e.target.value);
-                    }}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">Изберете вид...</option>
-                    {nomenclatures.map(n => (
-                      <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="number_orders">Регистрационен номер</Label>
-                  <Input
-                    id="number_orders"
-                    value={generatingNumber ? 'Генериране...' : number}
-                    readOnly
-                    className="bg-gray-50 cursor-not-allowed font-mono"
-                    placeholder="Ще се генерира автоматично"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="order_type_code">Вид заповед *</Label>
+                    <select
+                      id="order_type_code"
+                      value={orderTypeCode}
+                      onChange={async (e) => {
+                        setOrderTypeCode(e.target.value);
+                        await generateNumber(e.target.value);
+                      }}
+                      required
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Изберете вид...</option>
+                      {nomenclatures.map(n => (
+                        <option key={n.id} value={n.code}>{n.code}{n.description ? ` — ${n.description}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Регистрационен номер</Label>
+                    <Input
+                      value={generatingNumber ? 'Генериране...' : (number || 'Ще се генерира при избор на вид')}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed font-mono text-sm"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="title">Заглавие *</Label>
@@ -520,6 +543,16 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
             {/* ДОГОВОРИ */}
             {register === 'contracts' && (
               <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="number">Регистрационен номер *</Label>
+                    <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="1/2026" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="date">Дата на завеждане</Label>
+                    <Input id="date" type="date" value={date} readOnly className="bg-gray-50 cursor-not-allowed" />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="contract_type">Вид договор *</Label>
                   <select id="contract_type" value={contractType} onChange={(e) => setContractType(e.target.value as ContractType)} required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
