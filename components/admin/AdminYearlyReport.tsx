@@ -55,11 +55,13 @@ function cellText(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
   if (key === 'date' || key === 'end_date' || key === 'start_date') return formatBgDate(value as string) as string;
   if (key === 'status') {
-  if (value === 'cancelled') return 'АНУЛИРАН';
-  if (value === 'active') return 'Активен';
-  if (value === 'in_progress') return 'В изпълнение';
-  if (value === 'expired') return 'Изтекъл';
-  if (value === 'terminated') return 'Прекратен';
+    if (value === 'cancelled') return 'АНУЛИРАН';
+    if (value === 'active') return 'Активен';
+    if (value === 'in_progress') return 'В изпълнение';
+    if (value === 'expired') return 'Изтекъл';
+    if (value === 'terminated') return 'Прекратен';
+    return String(value);
+  }
   return String(value);
 }
 
@@ -94,11 +96,10 @@ export default function AdminYearlyReport() {
       const totalRecords = data.length;
       const cancelledRecords = data.filter((r: Record<string, unknown>) => r.status === 'cancelled').length;
 
-      // Хедър
       doc.setFontSize(16);
       doc.text('ЦСОП Варна — Деловодна система', 148, 14, { align: 'center' });
       doc.setFontSize(13);
-      doc.text(`ПРИКЛЮЧЕН ДЕЛОВОДЕН ДНЕВНИК`, 148, 21, { align: 'center' });
+      doc.text('ПРИКЛЮЧЕН ДЕЛОВОДЕН ДНЕВНИК', 148, 21, { align: 'center' });
       doc.setFontSize(11);
       doc.text(`${label} — ${selectedYear} г.`, 148, 28, { align: 'center' });
       doc.setFontSize(8);
@@ -138,7 +139,6 @@ export default function AdminYearlyReport() {
           textColor: [30, 30, 30],
         },
         didParseCell: (data) => {
-          // Анулираните редове с червен текст
           const row = data.row.raw as string[];
           if (row && row.includes('АНУЛИРАН')) {
             data.cell.styles.textColor = [180, 30, 30];
@@ -167,7 +167,6 @@ export default function AdminYearlyReport() {
         },
       });
 
-      // Подпис секция
       const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY || 200;
       if (finalY + 40 < doc.internal.pageSize.height) {
         doc.setFontSize(9);
@@ -185,7 +184,6 @@ export default function AdminYearlyReport() {
 
   return (
     <div className="space-y-6">
-      {/* Избор на година */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold text-gray-800">Изберете година</CardTitle>
@@ -205,7 +203,6 @@ export default function AdminYearlyReport() {
         </CardContent>
       </Card>
 
-      {/* Генериране по регистър */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {registers.map(({ key, label, icon: Icon, color }) => (
           <Card key={key} className="border-0 shadow-sm">
