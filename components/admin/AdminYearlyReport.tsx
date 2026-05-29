@@ -55,10 +55,11 @@ function cellText(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
   if (key === 'date' || key === 'end_date' || key === 'start_date') return formatBgDate(value as string) as string;
   if (key === 'status') {
-    if (value === 'cancelled') return 'АНУЛИРАН';
-    if (value === 'active') return 'Активен';
-    return String(value);
-  }
+  if (value === 'cancelled') return 'АНУЛИРАН';
+  if (value === 'active') return 'Активен';
+  if (value === 'in_progress') return 'В изпълнение';
+  if (value === 'expired') return 'Изтекъл';
+  if (value === 'terminated') return 'Прекратен';
   return String(value);
 }
 
