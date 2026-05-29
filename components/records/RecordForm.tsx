@@ -80,8 +80,10 @@ interface RecordFormProps {
   initialData?: Record<string, string>;
   nextNumber?: string;
   userId: string;
+  userEmail?: string;
   mode: 'create' | 'edit';
   nomenclatures?: NomenclatureItem[];
+}
 }
 
 export default function RecordForm({ register, initialData, nextNumber, userId, mode, nomenclatures = [] }: RecordFormProps) {
