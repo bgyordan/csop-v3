@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { RegisterType, Role } from '@/lib/supabase/types';
+import type { RegisterType } from '@/lib/supabase/types';
 import { REGISTER_LABELS } from '@/lib/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,9 +84,8 @@ interface RecordFormProps {
   mode: 'create' | 'edit';
   nomenclatures?: NomenclatureItem[];
 }
-}
 
-export default function RecordForm({ register, initialData, nextNumber, userId, mode, nomenclatures = [] }: RecordFormProps) {
+export default function RecordForm({ register, initialData, nextNumber, userId, userEmail = '', mode, nomenclatures = [] }: RecordFormProps) {
   const router = useRouter();
   const supabase = createClient();
   const isEdit = mode === 'edit';
@@ -323,6 +322,7 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
     if (isEdit) {
       await supabase.from('audit_log').insert({
         user_id: userId,
+        user_email: userEmail,
         action: 'edit',
         register,
         record_id: initialData?.id || '',
@@ -580,14 +580,14 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label htmlFor="number">Регистрационен номер *</Label>
-                  <Input 
-                    id="number" 
-                    value={number} 
-                    onChange={!isEdit ? (e) => setNumber(e.target.value) : undefined}
-                    readOnly={isEdit}
-                    placeholder="1/2026" 
-                    required 
-                    className={isEdit ? 'bg-gray-50 cursor-not-allowed font-mono' : ''}
+                    <Input
+                      id="number"
+                      value={number}
+                      onChange={!isEdit ? (e) => setNumber(e.target.value) : undefined}
+                      readOnly={isEdit}
+                      placeholder="1/2026"
+                      required
+                      className={isEdit ? 'bg-gray-50 cursor-not-allowed font-mono' : ''}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -615,17 +615,8 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                     <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
-                   <Label htmlFor="duration">Срок (месеци) *</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="1"
-                    max="999"
-                    placeholder="напр. 12"
-                      value={durationYears}
-                      onChange={(e) => setDurationYears(e.target.value)}
-                      required
-                    />
+                    <Label htmlFor="duration">Срок (месеци) *</Label>
+                    <Input id="duration" type="number" min="1" max="999" placeholder="напр. 12" value={durationYears} onChange={(e) => setDurationYears(e.target.value)} required />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Крайна дата</Label>
