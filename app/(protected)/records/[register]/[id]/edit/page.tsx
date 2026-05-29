@@ -38,6 +38,7 @@ export default async function EditRecordPage({
       register={register as RegisterType}
      initialData={record as Record<string, string>}
       userId={user.id}
+      userEmail={profile.email}
       mode="edit"
     />
   );
