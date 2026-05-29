@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
-import type { RegisterType } from '@/lib/supabase/types';
+import type { RegisterType, Role } from '@/lib/supabase/types';
 import { REGISTER_LABELS } from '@/lib/supabase/types';
 import { formatBgDate } from '@/lib/utils/date';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Download, Pencil, FileText, Calendar, Hash } from 'lucide-react';
-import DeleteButton from '@/components/records/DeleteButton';
+import { ArrowLeft, Download, Pencil, FileText, Calendar, Hash, Ban } from 'lucide-react';
+import RecordActions from '@/components/records/RecordActions';
 
 const VALID_REGISTERS: RegisterType[] = ['incoming', 'outgoing', 'orders', 'contracts'];
 
@@ -93,15 +93,16 @@ export default async function RecordViewPage({
     : { data: null };
 
   const canEdit = profile.role === 'admin' || profile.role === 'secretary';
-  const canDelete = profile.role === 'admin';
   const reg = register as RegisterType;
   const accentClass = registerAccentColors[reg];
   const r: Record<string, string> = record as Record<string, string>;
+  const isCancelled = r.status === 'cancelled';
 
   const fields: { label: string; value: string | null | undefined }[] = [];
 
   if (reg === 'incoming') {
     fields.push({ label: 'От кого', value: r.from_whom });
+    if (r.nomenclature_code) fields.push({ label: 'Номенклатура', value: r.nomenclature_code });
     fields.push({ label: 'Относно', value: r.subject });
     if (r.resolution) fields.push({ label: 'Резолюция', value: RESOLUTION_LABELS[r.resolution] || r.resolution });
     if (r.doc_date) fields.push({ label: 'Дата на документа', value: formatBgDate(r.doc_date) });
@@ -111,6 +112,7 @@ export default async function RecordViewPage({
 
   if (reg === 'outgoing') {
     fields.push({ label: 'До кого', value: r.to_whom });
+    if (r.nomenclature_code) fields.push({ label: 'Номенклатура', value: r.nomenclature_code });
     fields.push({ label: 'Относно', value: r.subject });
     if (r.reply_to) fields.push({ label: 'В отговор на (Вх. №)', value: r.reply_to });
     if (r.send_method) fields.push({ label: 'Изпратено по', value: SEND_METHOD_LABELS[r.send_method] || r.send_method });
@@ -129,7 +131,6 @@ export default async function RecordViewPage({
     if (r.days) fields.push({ label: 'Брой дни', value: r.days });
     if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
 
-    // Номер в дело
     if (r.order_type_code) {
       const currentYear = new Date().getFullYear();
       const { data: position } = await supabase.rpc('get_order_position_in_type', {
@@ -155,6 +156,11 @@ export default async function RecordViewPage({
     if (r.assignee) fields.push({ label: 'Отговорник', value: r.assignee });
   }
 
+  // Показваме причина за анулиране ако има
+  if (isCancelled && r.cancel_reason) {
+    fields.push({ label: 'Причина за анулиране', value: r.cancel_reason });
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
       <div className="mb-6">
@@ -168,13 +174,19 @@ export default async function RecordViewPage({
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${accentClass}`}>
                 {REGISTER_LABELS[reg]}
               </span>
+              {isCancelled && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border bg-red-50 border-red-200 text-red-700">
+                  <Ban size={13} />
+                  Анулиран
+                </span>
+              )}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className={`text-2xl font-bold ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
               {reg === 'orders' ? r.title : r.subject || `Запис №${r.number}`}
             </h1>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            {canEdit && (
+            {canEdit && !isCancelled && (
               <Link href={`/records/${register}/${id}/edit`}>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Pencil size={14} />
@@ -182,14 +194,23 @@ export default async function RecordViewPage({
                 </Button>
               </Link>
             )}
-            {canDelete && (
-              <DeleteButton id={id} register={reg} redirectTo={`/${register}`} />
+            {canEdit && (
+              <RecordActions
+                id={id}
+                register={reg}
+                recordNumber={r.number}
+                redirectTo={`/${register}`}
+                userRole={profile.role as Role}
+                userId={user.id}
+                userEmail={profile.email}
+                currentStatus={r.status || 'active'}
+              />
             )}
           </div>
         </div>
       </div>
 
-      <Card className="border-0 shadow-sm">
+      <Card className={`border-0 shadow-sm ${isCancelled ? 'opacity-75' : ''}`}>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div className="flex items-start gap-3">
@@ -198,7 +219,7 @@ export default async function RecordViewPage({
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-0.5">Регистрационен номер</p>
-                <p className="text-lg font-bold text-gray-900 font-mono">{r.number}</p>
+                <p className={`text-lg font-bold font-mono ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{r.number}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -216,7 +237,7 @@ export default async function RecordViewPage({
             {fields.map(({ label, value }) => (
               <div key={label}>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">{label}</p>
-                <p className="text-gray-800">{value || '—'}</p>
+                <p className={label === 'Причина за анулиране' ? 'text-red-600 font-medium' : 'text-gray-800'}>{value || '—'}</p>
               </div>
             ))}
 
