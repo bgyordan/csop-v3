@@ -261,7 +261,7 @@ export default async function RecordViewPage({
         <span className="text-xs text-gray-400 ml-auto">Без достъп</span>
       </div>
     ) : (
-      
+      <а
         href={r.file_url}
         target="_blank"
         rel="noopener noreferrer"
