@@ -567,7 +567,15 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label htmlFor="number">Регистрационен номер *</Label>
-                    <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="1/2026" required />
+                  <Input 
+                    id="number" 
+                    value={number} 
+                    onChange={!isEdit ? (e) => setNumber(e.target.value) : undefined}
+                    readOnly={isEdit}
+                    placeholder="1/2026" 
+                    required 
+                    className={isEdit ? 'bg-gray-50 cursor-not-allowed font-mono' : ''}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="date">Дата на завеждане</Label>
