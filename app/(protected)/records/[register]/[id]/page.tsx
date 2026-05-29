@@ -252,21 +252,29 @@ export default async function RecordViewPage({
           </div>
 
           {r.file_url && r.file_name && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Прикачен файл</p>
-              <a
-                href={r.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                download={r.file_name}
-                className="inline-flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                <FileText size={18} className="text-blue-600 flex-shrink-0" />
-                <span className="text-sm text-blue-700 font-medium truncate max-w-xs">{r.file_name}</span>
-                <Download size={16} className="text-blue-500 flex-shrink-0 ml-auto" />
-              </a>
-            </div>
-          )}
+  <div className="mt-6 pt-6 border-t border-gray-100">
+    <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Прикачен файл</p>
+    {profile.role === 'viewer' ? (
+      <div className="inline-flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <FileText size={18} className="text-gray-400 flex-shrink-0" />
+        <span className="text-sm text-gray-500 truncate max-w-xs">{r.file_name}</span>
+        <span className="text-xs text-gray-400 ml-auto">Без достъп</span>
+      </div>
+    ) : (
+      
+        href={r.file_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        download={r.file_name}
+        className="inline-flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
+      >
+        <FileText size={18} className="text-blue-600 flex-shrink-0" />
+        <span className="text-sm text-blue-700 font-medium truncate max-w-xs">{r.file_name}</span>
+        <Download size={16} className="text-blue-500 flex-shrink-0 ml-auto" />
+      </a>
+    )}
+  </div>
+)}
 
           <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400">
             <p>
