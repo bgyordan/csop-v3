@@ -399,7 +399,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
-                  <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
+                  <input id="subject" list="subject_list" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+<datalist id="subject_list">
+  <option value="Отпуск" />
+  <option value="Доклад" />
+  <option value="Заявление" />
+  <option value="Покана" />
+  <option value="Уведомление" />
+  <option value="Справка" />
+  <option value="Становище" />
+  <option value="Протокол" />
+</datalist>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
@@ -467,7 +477,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="subject">Относно *</Label>
-                  <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required />
+                  <input id="subject" list="subject_list" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Тема на документа" required className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+<datalist id="subject_list">
+  <option value="Отпуск" />
+  <option value="Доклад" />
+  <option value="Заявление" />
+  <option value="Покана" />
+  <option value="Уведомление" />
+  <option value="Справка" />
+  <option value="Становище" />
+  <option value="Протокол" />
+</datalist>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
