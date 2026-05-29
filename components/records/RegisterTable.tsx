@@ -8,6 +8,7 @@ import { formatBgDate } from '@/lib/utils/date';
 import type { RegisterType, Role } from '@/lib/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -26,13 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, Download, FileText, Ban } from 'lucide-react';
 
 interface RegisterTableProps {
   register: RegisterType;
   title: string;
   data: Record<string, unknown>[];
   userRole: Role;
+  userId: string;
+  userEmail: string;
   totalCount: number;
   page: number;
   pageSize?: number;
@@ -134,6 +137,8 @@ export default function RegisterTable({
   title,
   data,
   userRole,
+  userId,
+  userEmail,
   totalCount,
   page,
   pageSize = 20,
@@ -144,6 +149,10 @@ export default function RegisterTable({
   const supabase = createClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelNumber, setCancelNumber] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
   const [search, setSearch] = useState(searchValue);
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -152,15 +161,6 @@ export default function RegisterTable({
   const canDelete = userRole === 'admin';
   const totalPages = Math.ceil(totalCount / pageSize);
   const columns = registerColumnConfigs[register];
-
-  function buildParams(overrides: Record<string, string>) {
-    const params = new URLSearchParams();
-    if (search) params.set('q', search);
-    if (yearValue) params.set('year', yearValue);
-    params.set('page', '1');
-    Object.entries(overrides).forEach(([k, v]) => v ? params.set(k, v) : params.delete(k));
-    return params.toString();
-  }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -190,9 +190,36 @@ export default function RegisterTable({
   async function handleDelete() {
     if (!deleteId) return;
     setDeleting(true);
+    await supabase.from('audit_log').insert({
+      user_id: userId,
+      user_email: userEmail,
+      action: 'delete',
+      register,
+      record_id: deleteId,
+      details: 'Изтрит от администратор.',
+    });
     await supabase.from(register).delete().eq('id', deleteId);
     setDeleteId(null);
     setDeleting(false);
+    router.refresh();
+  }
+
+  async function handleCancel() {
+    if (!cancelId || !cancelReason.trim()) return;
+    setCancelling(true);
+    await supabase.from(register).update({ status: 'cancelled', cancel_reason: cancelReason }).eq('id', cancelId);
+    await supabase.from('audit_log').insert({
+      user_id: userId,
+      user_email: userEmail,
+      action: 'cancel',
+      register,
+      record_id: cancelId,
+      record_number: cancelNumber,
+      details: `Анулиран. Причина: ${cancelReason}`,
+    });
+    setCancelId(null);
+    setCancelReason('');
+    setCancelling(false);
     router.refresh();
   }
 
@@ -200,19 +227,16 @@ export default function RegisterTable({
     setExporting(true);
     try {
       let query = supabase.from(register).select('*').order('date', { ascending: true });
-      if (yearValue) {
-        query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
-      }
+      if (yearValue) query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
       const { data: allData } = await query;
       if (!allData || allData.length === 0) return;
-
       const XLSX = await import('xlsx');
       const headers = columns.map(c => c.label);
       const rows = allData.map(row => columns.map(col => cellToText(col.key, row[col.key])));
       const wsData = [headers, ...rows];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       ws['!cols'] = columns.map(col => {
-        if (col.key === 'number') return { wch: 15 };
+        if (col.key === 'number') return { wch: 22 };
         if (col.key === 'date' || col.key === 'start_date' || col.key === 'end_date') return { wch: 12 };
         if (col.key === 'file_name') return { wch: 8 };
         return { wch: 40 };
@@ -230,22 +254,16 @@ export default function RegisterTable({
     setExportingPdf(true);
     try {
       let query = supabase.from(register).select('*').order('date', { ascending: true });
-      if (yearValue) {
-        query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
-      }
+      if (yearValue) query = query.gte('date', `${yearValue}-01-01`).lte('date', `${yearValue}-12-31`);
       const { data: allData } = await query;
       if (!allData || allData.length === 0) return;
-
       const jsPDF = (await import('jspdf')).default;
       const autoTable = (await import('jspdf-autotable')).default;
-
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       doc.addFont('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5Q.ttf', 'Roboto', 'normal');
       doc.setFont('Roboto');
-
       const today = new Date().toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const yearLabel = yearValue || currentYear;
-
       doc.setFontSize(14);
       doc.text('ЦСОП Варна — Деловодна система', 148, 15, { align: 'center' });
       doc.setFontSize(11);
@@ -254,33 +272,17 @@ export default function RegisterTable({
       doc.setTextColor(150);
       doc.text(`Генерирано на: ${today}`, 148, 28, { align: 'center' });
       doc.setTextColor(0);
-
       const headers = columns.map(c => c.label);
       const rows = allData.map(row => columns.map(col => cellToText(col.key, row[col.key])));
-
       autoTable(doc, {
         head: [headers],
         body: rows,
         startY: 32,
-        styles: {
-          font: 'Roboto',
-          fontSize: 9,
-          cellPadding: 3,
-          overflow: 'linebreak',
-          lineColor: [220, 220, 220],
-          lineWidth: 0.3,
-        },
-        headStyles: {
-          fillColor: [29, 78, 216],
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252],
-        },
+        styles: { font: 'Roboto', fontSize: 9, cellPadding: 3, overflow: 'linebreak', lineColor: [220, 220, 220], lineWidth: 0.3 },
+        headStyles: { fillColor: [29, 78, 216], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: columns.reduce((acc, col, i) => {
-          if (col.key === 'number') acc[i] = { cellWidth: 22 };
+          if (col.key === 'number') acc[i] = { cellWidth: 30 };
           else if (col.key === 'date' || col.key === 'start_date' || col.key === 'end_date') acc[i] = { cellWidth: 22 };
           else if (col.key === 'file_name') acc[i] = { cellWidth: 12 };
           else acc[i] = { cellWidth: 'auto' };
@@ -290,16 +292,10 @@ export default function RegisterTable({
           const pageCount = doc.getNumberOfPages();
           doc.setFontSize(7);
           doc.setTextColor(150);
-          doc.text(
-            `Страница ${data.pageNumber} от ${pageCount} — ЦСОП Варна Деловодна система`,
-            148,
-            doc.internal.pageSize.height - 5,
-            { align: 'center' }
-          );
+          doc.text(`Страница ${data.pageNumber} от ${pageCount} — ЦСОП Варна Деловодна система`, 148, doc.internal.pageSize.height - 5, { align: 'center' });
           doc.setTextColor(0);
         },
       });
-
       const suffix = yearValue ? `_${yearValue}` : `_${currentYear}`;
       doc.save(`${registerTitles[register]}${suffix}.pdf`);
     } finally {
@@ -316,21 +312,11 @@ export default function RegisterTable({
           <p className="text-sm text-gray-500 mt-1">{totalCount} записа общо{yearValue ? ` за ${yearValue} г.` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="gap-2 text-gray-600 border-gray-200 hover:bg-gray-50"
-            onClick={handleExport}
-            disabled={exporting}
-          >
+          <Button variant="outline" className="gap-2 text-gray-600 border-gray-200 hover:bg-gray-50" onClick={handleExport} disabled={exporting}>
             <Download size={15} />
             {exporting ? 'Експортиране...' : 'Excel'}
           </Button>
-          <Button
-            variant="outline"
-            className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
-            onClick={handleExportPdf}
-            disabled={exportingPdf}
-          >
+          <Button variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50" onClick={handleExportPdf} disabled={exportingPdf}>
             <FileText size={15} />
             {exportingPdf ? 'Генериране...' : 'PDF'}
           </Button>
@@ -350,39 +336,21 @@ export default function RegisterTable({
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Търсене..."
-              className="pl-9 w-56"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <Input placeholder="Търсене..." className="pl-9 w-56" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <Button type="submit" variant="outline">Търси</Button>
           {searchValue && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => { setSearch(''); router.push(`/${register}${yearValue ? `?year=${yearValue}` : ''}`); }}
-            >
+            <Button type="button" variant="ghost" onClick={() => { setSearch(''); router.push(`/${register}${yearValue ? `?year=${yearValue}` : ''}`); }}>
               Изчисти
             </Button>
           )}
         </form>
-
-        {/* Year filter */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleYearChange('')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${!yearValue ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-          >
+          <button onClick={() => handleYearChange('')} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${!yearValue ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
             Всички
           </button>
           {years.map(y => (
-            <button
-              key={y}
-              onClick={() => handleYearChange(String(y))}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${yearValue === String(y) ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-            >
+            <button key={y} onClick={() => handleYearChange(String(y))} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${yearValue === String(y) ? 'bg-blue-700 text-white border-blue-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               {y}
             </button>
           ))}
@@ -412,45 +380,58 @@ export default function RegisterTable({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => (
-                <TableRow
-                  key={row.id as string}
-                  className="hover:bg-blue-50/30 cursor-pointer transition-colors"
-                  onClick={() => router.push(`/records/${register}/${row.id}`)}
-                >
-                  {columns.map((col) => (
-                    <TableCell key={col.key} className="text-sm text-gray-700">
-                      {renderCell(register, col.key, row[col.key])}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/records/${register}/${row.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600">
-                          <Eye size={15} />
-                        </Button>
-                      </Link>
-                      {canEdit && (
-                        <Link href={`/records/${register}/${row.id}/edit`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-green-600">
-                            <Pencil size={15} />
+              data.map((row) => {
+                const isCancelled = row.status === 'cancelled';
+                return (
+                  <TableRow
+                    key={row.id as string}
+                    className={`cursor-pointer transition-colors ${isCancelled ? 'bg-red-50/50 hover:bg-red-50' : 'hover:bg-blue-50/30'}`}
+                    onClick={() => router.push(`/records/${register}/${row.id}`)}
+                  >
+                    {columns.map((col) => (
+                      <TableCell key={col.key} className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                        {renderCell(register, col.key, row[col.key])}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/records/${register}/${row.id}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600">
+                            <Eye size={15} />
                           </Button>
                         </Link>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-red-600"
-                          onClick={() => setDeleteId(row.id as string)}
-                        >
-                          <Trash2 size={15} />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {canEdit && !isCancelled && (
+                          <Link href={`/records/${register}/${row.id}/edit`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-green-600">
+                              <Pencil size={15} />
+                            </Button>
+                          </Link>
+                        )}
+                        {canEdit && !isCancelled && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-amber-600"
+                            onClick={() => { setCancelId(row.id as string); setCancelNumber(row.number as string); }}
+                          >
+                            <Ban size={15} />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-600"
+                            onClick={() => setDeleteId(row.id as string)}
+                          >
+                            <Trash2 size={15} />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -459,21 +440,44 @@ export default function RegisterTable({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-500">
-            Страница {page} от {totalPages}
-          </p>
+          <p className="text-sm text-gray-500">Страница {page} от {totalPages}</p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => handlePageChange(page - 1)}>
-              <ChevronLeft size={16} />
-              Назад
+              <ChevronLeft size={16} />Назад
             </Button>
             <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)}>
-              Напред
-              <ChevronRight size={16} />
+              Напред<ChevronRight size={16} />
             </Button>
           </div>
         </div>
       )}
+
+      {/* Cancel dialog */}
+      <AlertDialog open={!!cancelId} onOpenChange={(open) => { if (!open) { setCancelId(null); setCancelReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Анулиране на запис № {cancelNumber}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Записът ще бъде маркиран като анулиран. Номерът се запазва.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-1 py-2">
+            <Label htmlFor="cancel_reason_table" className="mb-1.5 block">Причина за анулиране *</Label>
+            <Input
+              id="cancel_reason_table"
+              placeholder="Въведете причина..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отказ</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel} disabled={cancelling || !cancelReason.trim()} className="bg-amber-600 hover:bg-amber-700">
+              {cancelling ? 'Анулиране...' : 'Анулирай'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
@@ -481,7 +485,7 @@ export default function RegisterTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Изтриване на запис</AlertDialogTitle>
             <AlertDialogDescription>
-              Сигурни ли сте, че искате да изтриете този запис? Действието е необратимо.
+              Сигурни ли сте? Действието е необратимо.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
