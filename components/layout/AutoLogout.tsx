@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-const TIMEOUT_MS = 1 * 60 * 1000; // 30 минути
+const TIMEOUT_MS = 30 * 60 * 1000; // 30 минути
 
 export default function AutoLogout() {
   const router = useRouter();
