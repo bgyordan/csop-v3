@@ -19,19 +19,33 @@ export default async function AdminPage() {
   const { data: nomenclatures } = await supabase
     .from('nomenclatures')
     .select('*')
+    .in('register', ['incoming', 'outgoing'])
     .order('register')
     .order('code');
+
+  const { data: orderTypes } = await supabase
+    .from('order_types')
+    .select('*')
+    .order('code');
+
+  const { data: auditLog } = await supabase
+    .from('audit_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100);
 
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Администрация</h1>
-        <p className="text-gray-500 mt-1">Управление на потребители и номенклатури</p>
+        <p className="text-gray-500 mt-1">Управление на потребители, номенклатури и одит лог</p>
       </div>
       <AdminPanel
         users={users || []}
         currentUserId={user.id}
         nomenclatures={nomenclatures || []}
+        orderTypes={orderTypes || []}
+        auditLog={auditLog || []}
       />
     </div>
   );
