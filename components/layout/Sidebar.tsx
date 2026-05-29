@@ -138,7 +138,7 @@ export default function Sidebar({ profile }: SidebarProps) {
               )}
             >
               <ShieldCheck className={cn('flex-shrink-0', pathname.startsWith('/admin') ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400')} size={18} />
-              Потребители
+              Настройки
             </Link>
           </>
         )}
