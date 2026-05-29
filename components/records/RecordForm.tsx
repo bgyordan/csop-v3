@@ -318,6 +318,17 @@ export default function RecordForm({ register, initialData, nextNumber, userId, 
       return;
     }
 
+    if (isEdit) {
+      await supabase.from('audit_log').insert({
+        user_id: userId,
+        action: 'edit',
+        register,
+        record_id: initialData?.id || '',
+        record_number: finalNumber,
+        details: 'Редактиран запис.',
+      });
+    }
+
     router.push(`/${register}`);
     router.refresh();
   }
