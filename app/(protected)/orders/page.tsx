@@ -46,6 +46,8 @@ export default async function OrdersPage({
       title="Заповеди"
       data={(data || []) as Record<string, unknown>[]}
       userRole={userRole}
+      userId={user.id}
+      userEmail={profile.email}
       totalCount={count || 0}
       page={page}
       pageSize={PAGE_SIZE}
