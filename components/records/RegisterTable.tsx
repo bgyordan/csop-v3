@@ -385,7 +385,7 @@ export default function RegisterTable({
                 return (
                   <TableRow
                     key={row.id as string}
-                    className={`cursor-pointer transition-colors ${isCancelled ? 'bg-red-50/50 hover:bg-red-50' : index % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-gray-50/50 hover:bg-blue-50/30'}`}
+                    className={`cursor-pointer transition-colors ${isCancelled ? 'bg-red-50 hover:bg-red-100' : index % 2 !== 0 ? 'bg-slate-50 hover:bg-blue-50' : 'bg-white hover:bg-blue-50'}`}
                     onClick={() => router.push(`/records/${register}/${row.id}`)}
                   >
                     {columns.map((col) => (
