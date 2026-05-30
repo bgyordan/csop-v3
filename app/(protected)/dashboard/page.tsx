@@ -37,7 +37,6 @@ export default async function DashboardPage() {
   const canEdit = profile?.role === 'admin' || profile?.role === 'secretary';
 
   const today = new Date();
-  const currentYear = today.getFullYear();
   const in30Days = new Date(today);
   in30Days.setDate(today.getDate() + 30);
   const todayStr = today.toISOString().split('T')[0];
@@ -62,10 +61,10 @@ export default async function DashboardPage() {
     supabase.from('outgoing').select('*', { count: 'exact', head: true }),
     supabase.from('orders').select('*', { count: 'exact', head: true }),
     supabase.from('contracts').select('*', { count: 'exact', head: true }),
-    supabase.from('incoming').select('number').ilike('number', `%/${currentYear}`),
-    supabase.from('outgoing').select('number').ilike('number', `%/${currentYear}`),
-    supabase.from('orders').select('number').ilike('number', `%/${currentYear}`),
-    supabase.from('contracts').select('number').ilike('number', `%/${currentYear}`),
+    supabase.from('incoming').select('number').order('created_at', { ascending: false }).limit(1),
+    supabase.from('outgoing').select('number').order('created_at', { ascending: false }).limit(1),
+    supabase.from('orders').select('number').order('created_at', { ascending: false }).limit(1),
+    supabase.from('contracts').select('number').order('created_at', { ascending: false }).limit(1),
     supabase.from('incoming').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('outgoing').select('*').order('created_at', { ascending: false }).limit(2),
     supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(1),
@@ -73,26 +72,16 @@ export default async function DashboardPage() {
     supabase.from('contracts').select('*').gte('end_date', todayStr).lte('end_date', in30DaysStr).order('end_date', { ascending: true }),
   ]);
 
-  const getMaxNumber = (records: Array<{ number: string }> | null) => {
+  const getLastNumber = (records: Array<{ number: string }> | null) => {
     if (!records || records.length === 0) return null;
-    let maxNum = 0;
-    let maxRecord = '';
-    for (const rec of records) {
-      const match = String(rec.number).match(/^(\d+)/);
-      const num = match ? parseInt(match[1]) : 0;
-      if (!isNaN(num) && num > maxNum) {
-        maxNum = num;
-        maxRecord = rec.number;
-      }
-    }
-    return maxRecord || null;
+    return records[0].number;
   };
 
   const lastNumbers = {
-    incoming: getMaxNumber(lastIncoming as Array<{ number: string }> | null),
-    outgoing: getMaxNumber(lastOutgoing as Array<{ number: string }> | null),
-    orders: getMaxNumber(lastOrders as Array<{ number: string }> | null),
-    contracts: getMaxNumber(lastContracts as Array<{ number: string }> | null),
+    incoming: getLastNumber(lastIncoming as Array<{ number: string }> | null),
+    outgoing: getLastNumber(lastOutgoing as Array<{ number: string }> | null),
+    orders: getLastNumber(lastOrders as Array<{ number: string }> | null),
+    contracts: getLastNumber(lastContracts as Array<{ number: string }> | null),
   };
 
   type RecentItem = { id: string; number: string; date: string; created_at: string; register: 'incoming' | 'outgoing' | 'orders' | 'contracts'; label: string };
@@ -121,7 +110,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-6 lg:p-8">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Добре дошли, {profile?.full_name || profile?.email}!
@@ -131,12 +119,10 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Global Search */}
       <div className="mb-6">
         <GlobalSearch />
       </div>
 
-      {/* Count cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {counts.map(({ key, count }) => {
           const Icon = registerIcons[key];
@@ -157,7 +143,7 @@ export default async function DashboardPage() {
                     <p className="text-xs text-gray-400 font-mono">текущ №: {lastNum}</p>
                   )}
                   {!lastNum && count > 0 && (
-                    <p className="text-xs text-gray-300 font-mono">няма за {currentYear}</p>
+                    <p className="text-xs text-gray-300 font-mono">няма записи</p>
                   )}
                 </CardContent>
               </Card>
@@ -167,7 +153,6 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick actions */}
         {canEdit && (
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
@@ -179,40 +164,33 @@ export default async function DashboardPage() {
             <CardContent className="space-y-2">
               <Link href="/records/incoming/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-blue-700 border-blue-200 hover:bg-blue-50">
-                  <Inbox size={15} />
-                  Нов входящ
+                  <Inbox size={15} />Нов входящ
                 </Button>
               </Link>
               <Link href="/records/outgoing/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-green-700 border-green-200 hover:bg-green-50">
-                  <Send size={15} />
-                  Нов изходящ
+                  <Send size={15} />Нов изходящ
                 </Button>
               </Link>
               <Link href="/records/orders/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-orange-700 border-orange-200 hover:bg-orange-50">
-                  <FileText size={15} />
-                  Нова заповед
+                  <FileText size={15} />Нова заповед
                 </Button>
               </Link>
               <Link href="/records/contracts/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-2 h-10 text-purple-700 border-purple-200 hover:bg-purple-50">
-                  <ScrollText size={15} />
-                  Нов договор
+                  <ScrollText size={15} />Нов договор
                 </Button>
               </Link>
             </CardContent>
           </Card>
         )}
 
-        {/* Expiring contracts */}
         <Card className={`border-0 shadow-sm ${canEdit ? '' : 'lg:col-span-1'}`}>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-amber-500" />
-              <CardTitle className="text-sm font-semibold text-gray-700">
-                Договори изтичащи до 30 дни
-              </CardTitle>
+              <CardTitle className="text-sm font-semibold text-gray-700">Договори изтичащи до 30 дни</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -246,7 +224,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent activity */}
         <Card className={`border-0 shadow-sm ${canEdit ? '' : 'lg:col-span-2'}`}>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -269,9 +246,7 @@ export default async function DashboardPage() {
                       {REGISTER_LABELS[record.register]}
                     </span>
                     <span className="text-xs font-medium text-gray-600 font-mono flex-shrink-0">№ {record.number}</span>
-                    <span className="flex-1 text-sm text-gray-500 truncate group-hover:text-gray-700">
-                      {record.label}
-                    </span>
+                    <span className="flex-1 text-sm text-gray-500 truncate group-hover:text-gray-700">{record.label}</span>
                     <span className="text-xs text-gray-400 flex-shrink-0">{formatBgDate(record.date)}</span>
                   </Link>
                 ))}
